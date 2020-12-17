@@ -59,6 +59,7 @@ SCD30 airSensor;
 
 // for the data logging shield, we use digital pin 10 for the SD cs line
 const int chipSelect = 10;
+char filename[] = "LOGGER01.CSV";
 // the logging file
 File logfile;
 File root;
@@ -181,7 +182,7 @@ void setup(void)
   Serial.println("card initialized.");
 
   // create a new file
-  char filename[] = "LOGGER01.CSV";
+
   for (uint8_t i = 0; i < 100; i++) {
     filename[6] = i / 10 + '0';
     filename[7] = i % 10 + '0';
@@ -272,15 +273,15 @@ void loop(void)
 
 #if !(SENSOR_EXISTS)
   //Allows Serial manipulation of mock sensor data in the case the sensor is not connected
-
+  //new line behavior for non 'd' and 'r' characters weird here
   if (Serial.available() > 0) {
     char c = Serial.read();
     Serial.println(c);
-    while(Serial.available()) { //why does this not work here?
+    while (Serial.available()) { //why does this not work here?
       Serial.read();
-      }    
+    }
     int numData = 0;
-    switch(c){
+    switch (c) {
       case 'd':
         Serial.println("CO2");
         while (Serial.available() == 0) {}
@@ -294,8 +295,57 @@ void loop(void)
         relHum = addRHData(numData);
         break;
       case 'r':
-        Serial.println("reading");
-        break;
+        logfile.close();
+        logfile = SD.open(filename);
+        if (logfile) {
+          Serial.print("reading ");
+          Serial.println(filename);
+          while (logfile.available()) {
+            Serial.write(logfile.read());
+          }
+          Serial.println("end of file");
+          logfile.close();
+          
+        }
+        // if the file isn't open, pop up an error:
+        else {
+          Serial.println("error opening file");
+        }
+        logfile = SD.open(filename, FILE_WRITE);
+        /*
+          root = SD.open("/");
+          printDirectory(root, 0);
+          while (Serial.available() > 0) Serial.read();
+          Serial.println("FN or EXIT");
+          bool exitCond = false;
+          while (!exitCond) {
+          while (Serial.available() == 0) {
+          }
+          String input = Serial.readStringUntil('\n');
+          if (input == "exit") exitCond = true;
+          else {
+            if(input == filename)Serial.println("Same file");
+            // open the file. note that only one file can be open at a time,
+            // so you have to close this one before opening another.
+            File dataFile = SD.open(input);
+
+            // if the file is available, write contents to Serial monitor
+            if (dataFile) {
+              while (dataFile.available()) {
+                Serial.write(dataFile.read());
+              }
+              dataFile.close();
+              exitCond = true;
+            }
+            // if the file isn't open, pop up an error:
+            else {
+              Serial.println("error opening " + input);
+              exitCond = true;
+            }
+          }
+          }
+          root.close();
+        */
     }
   }
 
@@ -512,6 +562,7 @@ void printDirectory(File dir, int numTabs) {
   while (true) {
     File entry =  dir.openNextFile();
     if (! entry) {
+      Serial.println("entry does not exist");
       // no more files
       break;
     }
