@@ -274,27 +274,35 @@ void loop(void)
   //Allows Serial manipulation of mock sensor data in the case the sensor is not connected
 
   if (Serial.available() > 0) {
-    Serial.println(Serial.readStringUntil('\n'));
-    Serial.println("CO2");
-    while (Serial.available() == 0) {}
-    int numData = Serial.readStringUntil('\n').toInt();
-    Serial.println(numData);
-    co2_current = addCo2Data(numData);
-    Serial.println("RH:");
-    while (Serial.available() == 0) {
+    char c = Serial.read();
+    Serial.println(c);
+    while(Serial.available()) { //why does this not work here?
+      Serial.read();
+      }    
+    int numData = 0;
+    switch(c){
+      case 'd':
+        Serial.println("CO2");
+        while (Serial.available() == 0) {}
+        numData = Serial.readStringUntil('\n').toInt();
+        Serial.println(numData);
+        co2_current = addCo2Data(numData);
+        Serial.println("RH:");
+        while (Serial.available() == 0) {
+        }
+        numData = Serial.readString().toInt();
+        relHum = addRHData(numData);
+        break;
+      case 'r':
+        Serial.println("reading");
+        break;
     }
-    numData = Serial.readString().toInt();
-    relHum = addRHData(numData);
-    /*
-    */
-  }/*
+  }
 
-    
-    }
-  */
 #endif
+
   while (Serial.available() > 0) {
-    Serial.println(Serial.readStringUntil('\n'));
+    Serial.print(Serial.readStringUntil('\n'));
   }
 
   //Checks to see if LOG_INTERVAL has passed since last reading and logs data if so
