@@ -272,37 +272,28 @@ void loop(void)
 
 #if !(SENSOR_EXISTS)
   //Allows Serial manipulation of mock sensor data in the case the sensor is not connected
-  /*
-  if (Serial.available() > 0) {
-    Serial.println(Serial.read());
-    Serial.println("Enter value for CO2");
-    while (Serial.available() == 0) {}
 
-    String data = Serial.readString();
-    Serial.println("You entered: " + data);
-    int numData = data.toInt();
-    Serial.println("as a number: " + numData);
+  if (Serial.available() > 0) {
+    Serial.println(Serial.readStringUntil('\n'));
+    Serial.println("CO2");
+    while (Serial.available() == 0) {}
+    int numData = Serial.readStringUntil('\n').toInt();
+    Serial.println(numData);
     co2_current = addCo2Data(numData);
-    /*
-      Serial.println(Serial.readString());
-      Serial.println("Enter value for Temp");
-      while(Serial.available() == 0){
-      }
-      data = Serial.readString();
-      numData = data.toInt();
-      tempC = numData;
-    
-    Serial.println(Serial.readString());
-    Serial.println("Enter value for RH");
+    Serial.println("RH:");
     while (Serial.available() == 0) {
     }
-    data = Serial.readString();
-    numData = data.toInt();
+    numData = Serial.readString().toInt();
     relHum = addRHData(numData);
-  }
+    /*
+    */
+  }/*
+
+    
+    }
   */
 #endif
-  while(Serial.available() > 0){
+  while (Serial.available() > 0) {
     Serial.println(Serial.readStringUntil('\n'));
   }
 
