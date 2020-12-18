@@ -4,6 +4,8 @@
 //Humidity: 80-95%, drop to 60-70% before harvest
 //CO2: 500-1000
 
+//Manipulate memory: https://www.arduino.cc/reference/en/language/variables/utilities/progmem/
+
 
 #include <MemoryFree.h> //for monitoring free RAM, diagnosing memory leaks
 #include <pgmStrToRAM.h>
@@ -261,7 +263,7 @@ void setup(void)
   //logfile.println("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax");
 
 #if ECHO_TO_SERIAL
-  Serial.println("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax");
+  Serial.println(F("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax"));
 #endif //ECHO_TO_SERIAL
 
   //LCD SET-UP
@@ -274,7 +276,7 @@ void setup(void)
   //SCD30 temp/humidity/CO2 sensor set-up
   if (airSensor.begin(Wire, true) == false)
   {
-    error("Air sensor not detected. Please check wiring. Freezing...");
+    error(F("Air sensor not detected. Please check wiring. Freezing..."));
   }
   else {
     while (!airSensor.dataAvailable()) {
@@ -304,58 +306,62 @@ void loop(void)
     char c = Serial.read();
     Serial.println(c);
     int numData = 0;
+    char fn[13] = "LOGGER00.CSV";
+    String input;
+    while(Serial.available()) Serial.read();
     switch (c) {
-      /*
-        case 'd':
-        Serial.println("CO2");
+      case 'd':
+        Serial.println(F("CO2"));
+        if (Serial.available()) Serial.read();
         while (Serial.available() == 0) {}
         numData = Serial.readStringUntil('\n').toInt();
         Serial.println(numData);
         co2_current = addCo2Data(numData);
-        Serial.println("RH:");
+        while (Serial.available() > 0) Serial.read();
+        Serial.println(F("RH:"));
         while (Serial.available() == 0) {
         }
-        numData = Serial.readString().toInt();
+        numData = Serial.readStringUntil('\n').toInt();
         Serial.println(numData);
         relHum = addRHData(numData);
         break;
-      */
       case 'r':
         Serial.println(freeMemory());
         //logfile.close();
         printRoot();
+        if (Serial.available()) Serial.read();
+      //logfile = SD.open(filename, FILE_WRITE);
+        break;
+      case 'o':
+        if(Serial.available() >0) Serial.readString();
 
-        //logfile = SD.open(filename, FILE_WRITE);
+        while (Serial.available() == 0) {}
+        input = Serial.readString();
+        fn[6]=input[0];
+        fn[7] = input[1];
+        Serial.println(fn);
 
+        File dataFile = SD.open(fn);
+        //File dataFile = SD.open("LOGGER12.CSV");
+        // if the file is available, write contents to Serial monitor
+        if (dataFile) {
+          while (dataFile.available()) {
+            Serial.write(dataFile.read());
+          }
+          dataFile.close();
+        }
+        // if the file isn't open, pop up an error:
+        else {
+          Serial.println(F("error opening file"));
+
+        }
+        break;
+
+
+        // open the file. note that only one file can be open at a time,
+        // so you have to close this one before opening another.
         /*
-                while (Serial.available() > 0) Serial.read();
-                Serial.println("FN or EXIT");
-                bool exitCond = false;
-                while (!exitCond) {
-                  while (Serial.available() == 0) {
-                  }
-                  String input = Serial.readStringUntil('\n');
-                  if (input == "exit") exitCond = true;
-                  else {
-                    //if(input == filename)Serial.println("Same file");
-                    // open the file. note that only one file can be open at a time,
-                    // so you have to close this one before opening another.
-                    File dataFile = SD.open(input);
 
-                    // if the file is available, write contents to Serial monitor
-                    if (dataFile) {
-                      while (dataFile.available()) {
-                        Serial.write(dataFile.read());
-                      }
-                      dataFile.close();
-                      exitCond = true;
-                    }
-                    // if the file isn't open, pop up an error:
-                    else {
-                      Serial.println("error opening " + input);
-                      exitCond = true;
-                    }
-                  }
         */
     }
   }
