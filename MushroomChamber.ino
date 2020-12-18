@@ -64,7 +64,7 @@ const int chipSelect = 10;
 char filename[] = "LOGGER01.CSV";
 // the logging file
 File logfile;
-//File readfile;
+
 DateTime now;
 unsigned long syncTime = 0; // time of last sync()
 unsigned long lastReading = 0; //time of last data reading
@@ -88,8 +88,6 @@ ArduinoQueue<uint8_t> rhReadings(12);
 long co2Sum = 0;
 int rhSum = 0;
 
-void setup(void);
-void loop(void);
 //Function for printing error information for debugging
 //Turns on Red LED and stops program
 void error(const char *str)
@@ -158,14 +156,13 @@ void initializeQueues(int co2, uint8_t rh) {
 }
 
 void printRoot() {
-  Serial.println(freeMemory());
   File root = SD.open("/");
   if (root) {
     root.rewindDirectory();
     while (true) {
       File entry =  root.openNextFile();
       if (! entry) {
-        Serial.println("entry does not exist");
+        Serial.println(F("EOF"));
         // no more files
         break;
       }
@@ -252,16 +249,16 @@ void setup(void)
   rtc.start();
   //NOTE: RTC can be offset to adjust for temperature, age etc. See documentation and example
   //PCF8523 sketches for doing so
-  //logfile.println("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax");
+  logfile.println(F("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 
 #if ECHO_TO_SERIAL
-  Serial.println(F("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax"));
+  Serial.println(F("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 #endif //ECHO_TO_SERIAL
 
   //LCD SET-UP
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2);
-  lcd.print("Hello, mushrooms!");
+  lcd.print(F("Hello, mushrooms!"));
   lcd.setBacklight(OFF);
 
 #if SENSOR_EXISTS
@@ -288,6 +285,7 @@ void loop(void)
   //Allows Serial manipulation of mock sensor data in the case the sensor is not connected
   //new line behavior for non 'd' and 'r' characters weird here
   if (Serial.available() > 0) {
+    logfile.close();
     char c = Serial.read();
     Serial.println(c);
     int numData = 0;
@@ -296,39 +294,35 @@ void loop(void)
     while (Serial.available()) Serial.readString();
     switch (c) {
 #if !(SENSOR_EXISTS)
+      /*
       case 'd':
         Serial.println(F("CO2"));
         while (Serial.available() == 0) {}
-        numData = Serial.readStringUntil('\n').toInt();
+        numData = Serial.readString().toInt();
         Serial.println(numData);
         co2_current = addCo2Data(numData);
         while (Serial.available() > 0) Serial.read();
         Serial.println(F("RH:"));
         while (Serial.available() == 0) {
         }
-        numData = Serial.readStringUntil('\n').toInt();
+        numData = Serial.readString().toInt();
         Serial.println(numData);
         relHum = addRHData(numData);
         break;
+        */
 #endif
       case 'r':
-        Serial.println(freeMemory());
-        //logfile.close();
         printRoot();
         if (Serial.available()) Serial.read();
-        //logfile = SD.open(filename, FILE_WRITE);
         break;
       case 'o':
         if (Serial.available() > 0) Serial.readString();
-
         while (Serial.available() == 0) {}
         input = Serial.readString();
         fn[6] = input[0];
         fn[7] = input[1];
         Serial.println(fn);
-
         File dataFile = SD.open(fn);
-        //File dataFile = SD.open("LOGGER12.CSV");
         // if the file is available, write contents to Serial monitor
         if (dataFile) {
           while (dataFile.available()) {
@@ -340,22 +334,14 @@ void loop(void)
         // if the file isn't open, pop up an error:
         else {
           Serial.println(F("error opening file"));
-
         }
         break;
-
-
-        // open the file. note that only one file can be open at a time,
-        // so you have to close this one before opening another.
-        /*
-
-        */
     }
+    logfile = SD.open(filename, FILE_WRITE);
   }
 
   //Checks to see if LOG_INTERVAL has passed since last reading and logs data if so
   if (millis() - lastReading >= DATA_INTERVAL) {
-    Serial.println(freeMemory());
     // fetch the time
     now = rtc.now();
 #if SENSOR_EXISTS
@@ -365,7 +351,6 @@ void loop(void)
       //gets current sensor data
       co2_current = addCo2Data(airSensor.getCO2());
       relHum = addRHData(airSensor.getHumidity());
-
     }
 
 #endif //SENSOR_EXISTS
@@ -389,7 +374,6 @@ void loop(void)
     }
 
 #if ECHO_TO_SERIAL
-
     Serial.print('"');
     Serial.print(now.year(), DEC);
     Serial.print("/");
@@ -419,6 +403,8 @@ void loop(void)
     Serial.print(rhMin);
     Serial.print(", ");
     Serial.print(rhMax);
+    Serial.print(", ");
+    Serial.print(freeMemory());
     Serial.println();
 
 
@@ -428,41 +414,43 @@ void loop(void)
 
   if (millis() - lastLogging >= LOG_INTERVAL) {
     lastLogging = millis();
-    
-      // log time
-      logfile.print('"');
-      logfile.print(now.year(), DEC);
-      logfile.print("/");
-      logfile.print(now.month(), DEC);
-      logfile.print("/");
-      logfile.print(now.day(), DEC);
-      logfile.print(" ");
-      logfile.print(now.hour(), DEC);
-      logfile.print(":");
-      logfile.print(now.minute(), DEC);
-      logfile.print(":");
-      logfile.print(now.second(), DEC);
-      logfile.print('"');
-      logfile.print(", ");
 
-      // log sensor data
-      logfile.print(co2_current);
-      logfile.print(", ");
-      logfile.print(tempC);
-      logfile.print(", ");
-      logfile.print(relHum);
-      logfile.print(", ");
-      logfile.print(fanOn);
-      logfile.print(", ");
-      logfile.print(humOn);
-      logfile.print(", ");
-      logfile.print(co2Max);
-      logfile.print(", ");
-      logfile.print(rhMin);
-      logfile.print(", ");
-      logfile.print(rhMax);
-      logfile.println();
-    
+    // log time
+    logfile.print('"');
+    logfile.print(now.year(), DEC);
+    logfile.print("/");
+    logfile.print(now.month(), DEC);
+    logfile.print("/");
+    logfile.print(now.day(), DEC);
+    logfile.print(" ");
+    logfile.print(now.hour(), DEC);
+    logfile.print(":");
+    logfile.print(now.minute(), DEC);
+    logfile.print(":");
+    logfile.print(now.second(), DEC);
+    logfile.print('"');
+    logfile.print(", ");
+
+    // log sensor data
+    logfile.print(co2_current);
+    logfile.print(", ");
+    logfile.print(tempC);
+    logfile.print(", ");
+    logfile.print(relHum);
+    logfile.print(", ");
+    logfile.print(fanOn);
+    logfile.print(", ");
+    logfile.print(humOn);
+    logfile.print(", ");
+    logfile.print(co2Max);
+    logfile.print(", ");
+    logfile.print(rhMin);
+    logfile.print(", ");
+    logfile.print(rhMax);
+    logfile.print(", ");
+    logfile.print(freeMemory());
+    logfile.println();
+
     //Green LED off when data collection is complete
     digitalWrite(greenLEDpin, LOW);
 
@@ -528,20 +516,20 @@ void loop(void)
     }
     if (buttons & BUTTON_SELECT) {
       lcd.clear();
-      lcd.print("CO2: ");
+      lcd.print(F("CO2: "));
       lcd.print(co2_current);
-      lcd.print("ppm");
+      lcd.print(F("ppm"));
       lcd.setCursor(0, 1);
-      lcd.print("Temp:");
+      lcd.print(F("Temp:"));
       lcd.print(tempC);
-      lcd.print("C");
-      lcd.print(" RH:");
+      lcd.print(F("C"));
+      lcd.print(F(" RH:"));
       lcd.print(relHum);
       lcd.print("%");
       delay(3000);
       state = MAIN;
       lcd.clear();
-      lcd.print("Hello, mushrooms!");
+      lcd.print(F("Hello, mushrooms!"));
     }
     delay(200);
   }
