@@ -5,8 +5,8 @@
 //CO2: 500-1000
 
 
-//#include <MemoryFree.h> //for monitoring free RAM, diagnosing memory leaks
-//#include <pgmStrToRAM.h>
+#include <MemoryFree.h> //for monitoring free RAM, diagnosing memory leaks
+#include <pgmStrToRAM.h>
 #include <SPI.h> //data logging shield SPI communication
 #include <SD.h> //SD card data logging
 #include <Wire.h> //I2C communication
@@ -61,8 +61,8 @@ SCD30 airSensor;
 const int chipSelect = 10;
 char filename[] = "LOGGER01.CSV";
 // the logging file
-File logfile;
-File root;
+//File logfile;
+//File readfile;
 DateTime now;
 unsigned long syncTime = 0; // time of last sync()
 unsigned long lastReading = 0; //time of last data reading
@@ -156,6 +156,28 @@ void initializeQueues(int co2, uint8_t rh) {
   co2_current = co2;
 }
 
+void printRoot() {
+  Serial.println(freeMemory());
+  File root = SD.open("/");
+  if (root) {
+    root.rewindDirectory();
+    while (true) {
+      File entry =  root.openNextFile();
+      if (! entry) {
+        Serial.println("entry does not exist");
+        // no more files
+        break;
+      }
+      Serial.print(entry.name());
+
+      Serial.print("\t\t");
+      Serial.println(entry.size(), DEC);//need to check if directory first
+      entry.close();
+    }
+  }
+  root.close();
+}
+
 void setup(void)
 {
   Serial.begin(9600);
@@ -175,31 +197,34 @@ void setup(void)
   // sets SD chip select pin to output
   pinMode(10, OUTPUT);
 
+
+
   // see if the card is present and can be initialized:
   if (!SD.begin(chipSelect)) {
     error("Card not present or unable to be initialized");
   }
   Serial.println("card initialized.");
 
-  // create a new file
+  /*
+    // create a new file
 
-  for (uint8_t i = 0; i < 100; i++) {
-    filename[6] = i / 10 + '0';
-    filename[7] = i % 10 + '0';
-    if (! SD.exists(filename)) {
-      // only open a new file if it doesn't exist
-      logfile = SD.open(filename, FILE_WRITE);
-      break;  // leave the loop!
+    for (uint8_t i = 0; i < 100; i++) {
+      filename[6] = i / 10 + '0';
+      filename[7] = i % 10 + '0';
+      if (! SD.exists(filename)) {
+        // only open a new file if it doesn't exist
+        logfile = SD.open(filename, FILE_WRITE);
+        break;  // leave the loop!
+      }
     }
-  }
-  if (! logfile) {
-    error("couldnt create file");
-  }
+    if (! logfile) {
+      error("couldnt create file");
+    }
 
-  Serial.print("Logging to: ");
-  Serial.println(filename);
-  //Serial.println("Enter \"read\" to read file data or any character to simulate sensor data");
-
+    Serial.print("Logging to: ");
+    Serial.println(filename);
+    //Serial.println("Enter \"read\" to read file data or any character to simulate sensor data");
+  */
   // connect to RTC
   Wire.begin();
   if (! rtc.begin()) {
@@ -233,7 +258,7 @@ void setup(void)
   rtc.start();
   //NOTE: RTC can be offset to adjust for temperature, age etc. See documentation and example
   //PCF8523 sketches for doing so
-  logfile.println("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax");
+  //logfile.println("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax");
 
 #if ECHO_TO_SERIAL
   Serial.println("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax");
@@ -272,17 +297,16 @@ void loop(void)
 
 
 #if !(SENSOR_EXISTS)
+
   //Allows Serial manipulation of mock sensor data in the case the sensor is not connected
   //new line behavior for non 'd' and 'r' characters weird here
   if (Serial.available() > 0) {
     char c = Serial.read();
     Serial.println(c);
-    while (Serial.available()) { //why does this not work here?
-      Serial.read();
-    }
     int numData = 0;
     switch (c) {
-      case 'd':
+      /*
+        case 'd':
         Serial.println("CO2");
         while (Serial.available() == 0) {}
         numData = Serial.readStringUntil('\n').toInt();
@@ -292,71 +316,56 @@ void loop(void)
         while (Serial.available() == 0) {
         }
         numData = Serial.readString().toInt();
+        Serial.println(numData);
         relHum = addRHData(numData);
         break;
+      */
       case 'r':
-        logfile.close();
-        logfile = SD.open(filename);
-        if (logfile) {
-          Serial.print("reading ");
-          Serial.println(filename);
-          while (logfile.available()) {
-            Serial.write(logfile.read());
-          }
-          Serial.println("end of file");
-          logfile.close();
-          
-        }
-        // if the file isn't open, pop up an error:
-        else {
-          Serial.println("error opening file");
-        }
-        logfile = SD.open(filename, FILE_WRITE);
-        /*
-          root = SD.open("/");
-          printDirectory(root, 0);
-          while (Serial.available() > 0) Serial.read();
-          Serial.println("FN or EXIT");
-          bool exitCond = false;
-          while (!exitCond) {
-          while (Serial.available() == 0) {
-          }
-          String input = Serial.readStringUntil('\n');
-          if (input == "exit") exitCond = true;
-          else {
-            if(input == filename)Serial.println("Same file");
-            // open the file. note that only one file can be open at a time,
-            // so you have to close this one before opening another.
-            File dataFile = SD.open(input);
+        Serial.println(freeMemory());
+        //logfile.close();
+        printRoot();
 
-            // if the file is available, write contents to Serial monitor
-            if (dataFile) {
-              while (dataFile.available()) {
-                Serial.write(dataFile.read());
-              }
-              dataFile.close();
-              exitCond = true;
-            }
-            // if the file isn't open, pop up an error:
-            else {
-              Serial.println("error opening " + input);
-              exitCond = true;
-            }
-          }
-          }
-          root.close();
+        //logfile = SD.open(filename, FILE_WRITE);
+
+        /*
+                while (Serial.available() > 0) Serial.read();
+                Serial.println("FN or EXIT");
+                bool exitCond = false;
+                while (!exitCond) {
+                  while (Serial.available() == 0) {
+                  }
+                  String input = Serial.readStringUntil('\n');
+                  if (input == "exit") exitCond = true;
+                  else {
+                    //if(input == filename)Serial.println("Same file");
+                    // open the file. note that only one file can be open at a time,
+                    // so you have to close this one before opening another.
+                    File dataFile = SD.open(input);
+
+                    // if the file is available, write contents to Serial monitor
+                    if (dataFile) {
+                      while (dataFile.available()) {
+                        Serial.write(dataFile.read());
+                      }
+                      dataFile.close();
+                      exitCond = true;
+                    }
+                    // if the file isn't open, pop up an error:
+                    else {
+                      Serial.println("error opening " + input);
+                      exitCond = true;
+                    }
+                  }
         */
     }
   }
 
+
+
 #endif
-
-  while (Serial.available() > 0) {
-    Serial.print(Serial.readStringUntil('\n'));
-  }
-
   //Checks to see if LOG_INTERVAL has passed since last reading and logs data if so
   if (millis() - lastReading >= DATA_INTERVAL) {
+    Serial.println(freeMemory());
     // fetch the time
     now = rtc.now();
 #if SENSOR_EXISTS
@@ -368,7 +377,9 @@ void loop(void)
       relHum = addRHData(airSensor.getHumidity());
 
     }
+
 #endif //SENSOR_EXISTS
+
     //LOGIC FOR RELAY
     if (fanOn == false && (co2_current > co2Max || relHum < rhMin)) {
       fanOn = true;
@@ -386,7 +397,9 @@ void loop(void)
       humOn = false;
       digitalWrite(HUM_RELAY, HIGH);
     }
+
 #if ECHO_TO_SERIAL
+
     Serial.print('"');
     Serial.print(now.year(), DEC);
     Serial.print("/");
@@ -418,54 +431,51 @@ void loop(void)
     Serial.print(rhMax);
     Serial.println();
 
+
 #endif //ECHO_TO_SERIAL
     lastReading = millis();
   }
 
   if (millis() - lastLogging >= LOG_INTERVAL) {
     lastLogging = millis();
-    // log time
-    logfile.print('"');
-    logfile.print(now.year(), DEC);
-    logfile.print("/");
-    logfile.print(now.month(), DEC);
-    logfile.print("/");
-    logfile.print(now.day(), DEC);
-    logfile.print(" ");
-    logfile.print(now.hour(), DEC);
-    logfile.print(":");
-    logfile.print(now.minute(), DEC);
-    logfile.print(":");
-    logfile.print(now.second(), DEC);
-    logfile.print('"');
-    logfile.print(", ");
+    /*
+      // log time
+      logfile.print('"');
+      logfile.print(now.year(), DEC);
+      logfile.print("/");
+      logfile.print(now.month(), DEC);
+      logfile.print("/");
+      logfile.print(now.day(), DEC);
+      logfile.print(" ");
+      logfile.print(now.hour(), DEC);
+      logfile.print(":");
+      logfile.print(now.minute(), DEC);
+      logfile.print(":");
+      logfile.print(now.second(), DEC);
+      logfile.print('"');
+      logfile.print(", ");
 
-    // log sensor data
-    logfile.print(co2_current);
-    logfile.print(", ");
-    logfile.print(tempC);
-    logfile.print(", ");
-    logfile.print(relHum);
-    logfile.print(", ");
-    logfile.print(fanOn);
-    logfile.print(", ");
-    logfile.print(humOn);
-    logfile.print(", ");
-    logfile.print(co2Max);
-    logfile.print(", ");
-    logfile.print(rhMin);
-    logfile.print(", ");
-    logfile.print(rhMax);
-    logfile.println();
-
+      // log sensor data
+      logfile.print(co2_current);
+      logfile.print(", ");
+      logfile.print(tempC);
+      logfile.print(", ");
+      logfile.print(relHum);
+      logfile.print(", ");
+      logfile.print(fanOn);
+      logfile.print(", ");
+      logfile.print(humOn);
+      logfile.print(", ");
+      logfile.print(co2Max);
+      logfile.print(", ");
+      logfile.print(rhMin);
+      logfile.print(", ");
+      logfile.print(rhMax);
+      logfile.println();
+    */
     //Green LED off when data collection is complete
     digitalWrite(greenLEDpin, LOW);
-    //Uncomment to monitor amount of free memory throughout program
-    /*
-      Serial.print("Free memory: ");
-      Serial.print(freeMemory());
-      Serial.println();
-    */
+
   }
   if (backlightOn && (millis() - backlight) > 15000) {
     backlightOn = false;
@@ -545,6 +555,7 @@ void loop(void)
     }
     delay(200);
   }
+
   digitalWrite(greenLEDpin, LOW);
 
   // Now we write data to disk! Don't sync too often - requires 2048 bytes of I/O to SD card
@@ -554,30 +565,6 @@ void loop(void)
 
   // blink LED to show we are syncing data to the card & updating FAT!
   digitalWrite(redLEDpin, HIGH);
-  logfile.flush();
+  //logfile.flush();
   digitalWrite(redLEDpin, LOW);
-}
-
-void printDirectory(File dir, int numTabs) {
-  while (true) {
-    File entry =  dir.openNextFile();
-    if (! entry) {
-      Serial.println("entry does not exist");
-      // no more files
-      break;
-    }
-    for (uint8_t i = 0; i < numTabs; i++) {
-      Serial.print('\t');
-    }
-    Serial.print(entry.name());
-    if (entry.isDirectory()) {
-      Serial.println("/");
-      printDirectory(entry, numTabs + 1);
-    } else {
-      // files have sizes, directories do not
-      Serial.print("\t\t");
-      Serial.println(entry.size(), DEC);
-    }
-    entry.close();
-  }
 }
