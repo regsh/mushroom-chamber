@@ -63,7 +63,7 @@ SCD30 airSensor;
 const int chipSelect = 10;
 char filename[] = "LOGGER01.CSV";
 // the logging file
-//File logfile;
+File logfile;
 //File readfile;
 DateTime now;
 unsigned long syncTime = 0; // time of last sync()
@@ -94,9 +94,8 @@ void loop(void);
 //Turns on Red LED and stops program
 void error(const char *str)
 {
-  Serial.print("error: ");
+  Serial.print(F("error: "));
   Serial.println(str);
-
   // red LED indicates error
   digitalWrite(redLEDpin, HIGH);
   while (1);
@@ -107,23 +106,23 @@ void displayState(int state) {
   switch (state) {
     case MAIN:
       lcd.clear();
-      lcd.print("Hello mushrooms!");
+      lcd.print(F("Hello mushrooms!"));
       break;
     case SET_CO2_MAX:
       lcd.clear();
-      lcd.print("CO2 MAX:");
+      lcd.print(F("CO2 MAX:"));
       lcd.setCursor(0, 1);
       lcd.print(co2Max);
       break;
     case SET_RH_MIN:
       lcd.clear();
-      lcd.print("RH MIN:");
+      lcd.print(F("RH MIN:"));
       lcd.setCursor(0, 1);
       lcd.print(rhMin);
       break;
     case SET_RH_MAX:
       lcd.clear();
-      lcd.print("RH MAX:");
+      lcd.print(F("RH MAX:"));
       lcd.setCursor(0, 1);
       lcd.print(rhMax);
       break;
@@ -171,8 +170,7 @@ void printRoot() {
         break;
       }
       Serial.print(entry.name());
-
-      Serial.print("\t\t");
+      Serial.print(F("\t\t"));
       Serial.println(entry.size(), DEC);//need to check if directory first
       entry.close();
     }
@@ -195,38 +193,32 @@ void setup(void)
   digitalWrite(RELAY_4, HIGH);
 
   // initialize the SD card
-  Serial.print("Initializing SD card...");
+  Serial.print(F("Initializing SD card..."));
   // sets SD chip select pin to output
   pinMode(10, OUTPUT);
-
-
-
   // see if the card is present and can be initialized:
   if (!SD.begin(chipSelect)) {
     error("Card not present or unable to be initialized");
   }
-  Serial.println("card initialized.");
+  Serial.println(F("card initialized."));
+  // create a new file
 
-  /*
-    // create a new file
-
-    for (uint8_t i = 0; i < 100; i++) {
-      filename[6] = i / 10 + '0';
-      filename[7] = i % 10 + '0';
-      if (! SD.exists(filename)) {
-        // only open a new file if it doesn't exist
-        logfile = SD.open(filename, FILE_WRITE);
-        break;  // leave the loop!
-      }
+  for (uint8_t i = 0; i < 100; i++) {
+    filename[6] = i / 10 + '0';
+    filename[7] = i % 10 + '0';
+    if (! SD.exists(filename)) {
+      // only open a new file if it doesn't exist
+      logfile = SD.open(filename, FILE_WRITE);
+      break;  // leave the loop!
     }
-    if (! logfile) {
-      error("couldnt create file");
-    }
+  }
+  if (! logfile) {
+    error("couldnt create file");
+  }
 
-    Serial.print("Logging to: ");
-    Serial.println(filename);
-    //Serial.println("Enter \"read\" to read file data or any character to simulate sensor data");
-  */
+  Serial.print(F("Logging to: "));
+  Serial.println(filename);
+
   // connect to RTC
   Wire.begin();
   if (! rtc.begin()) {
@@ -249,7 +241,7 @@ void setup(void)
 
   // When time needs to be re-set on a previously configured device, the
   // following line sets the RTC to the date & time this sketch was compiled
-  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   // This line sets the RTC with an explicit date & time, for example to set
   // January 21, 2014 at 3am you would call:
   // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
@@ -290,16 +282,9 @@ void setup(void)
   tempC = 25;
 #endif //SENSOR_EXISTS
 }
-
-
-
 void loop(void)
 {
   //The SCD30 has data ready every two seconds, can reconfigure for more/less frequent data collection
-
-
-#if !(SENSOR_EXISTS)
-
   //Allows Serial manipulation of mock sensor data in the case the sensor is not connected
   //new line behavior for non 'd' and 'r' characters weird here
   if (Serial.available() > 0) {
@@ -308,11 +293,11 @@ void loop(void)
     int numData = 0;
     char fn[13] = "LOGGER00.CSV";
     String input;
-    while(Serial.available()) Serial.read();
+    while (Serial.available()) Serial.readString();
     switch (c) {
+#if !(SENSOR_EXISTS)
       case 'd':
         Serial.println(F("CO2"));
-        if (Serial.available()) Serial.read();
         while (Serial.available() == 0) {}
         numData = Serial.readStringUntil('\n').toInt();
         Serial.println(numData);
@@ -325,19 +310,20 @@ void loop(void)
         Serial.println(numData);
         relHum = addRHData(numData);
         break;
+#endif
       case 'r':
         Serial.println(freeMemory());
         //logfile.close();
         printRoot();
         if (Serial.available()) Serial.read();
-      //logfile = SD.open(filename, FILE_WRITE);
+        //logfile = SD.open(filename, FILE_WRITE);
         break;
       case 'o':
-        if(Serial.available() >0) Serial.readString();
+        if (Serial.available() > 0) Serial.readString();
 
         while (Serial.available() == 0) {}
         input = Serial.readString();
-        fn[6]=input[0];
+        fn[6] = input[0];
         fn[7] = input[1];
         Serial.println(fn);
 
@@ -348,6 +334,7 @@ void loop(void)
           while (dataFile.available()) {
             Serial.write(dataFile.read());
           }
+          Serial.println(F("EOF"));
           dataFile.close();
         }
         // if the file isn't open, pop up an error:
@@ -366,9 +353,6 @@ void loop(void)
     }
   }
 
-
-
-#endif
   //Checks to see if LOG_INTERVAL has passed since last reading and logs data if so
   if (millis() - lastReading >= DATA_INTERVAL) {
     Serial.println(freeMemory());
@@ -444,7 +428,7 @@ void loop(void)
 
   if (millis() - lastLogging >= LOG_INTERVAL) {
     lastLogging = millis();
-    /*
+    
       // log time
       logfile.print('"');
       logfile.print(now.year(), DEC);
@@ -478,7 +462,7 @@ void loop(void)
       logfile.print(", ");
       logfile.print(rhMax);
       logfile.println();
-    */
+    
     //Green LED off when data collection is complete
     digitalWrite(greenLEDpin, LOW);
 
