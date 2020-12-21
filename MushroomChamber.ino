@@ -17,7 +17,8 @@
 #include <utility/Adafruit_MCP23017.h> //microchip in LCD?
 #include <SparkFun_SCD30_Arduino_Library.h> //for CO2/temp/RH sensor (Sensiron SCD30)
 #include <stdint.h>
-#include <ArduinoQueue.h> //for averaging data points to debounce relay behavior
+#include "SensorData.h"
+
 
 
 // how many milliseconds between grabbing data and logging it. 1000 ms is once a second
@@ -83,10 +84,15 @@ int co2_current = 0;
 uint8_t tempC = 0;
 uint8_t relHum = 0;
 
+/*
 ArduinoQueue<int> co2Readings(12);
 ArduinoQueue<uint8_t> rhReadings(12);
 long co2Sum = 0;
 int rhSum = 0;
+*/
+SensorData co2Data(12);
+SensorData rhData(12);
+
 
 //Function for printing error information for debugging
 //Turns on Red LED and stops program
@@ -126,6 +132,7 @@ void displayState(int state) {
       break;
   }
 }
+/*
 //Adds new reading to queue of co2 data points
 //Returns the new average over the last 12 readings
 int addCo2Data(int newData) {
@@ -154,7 +161,7 @@ void initializeQueues(int co2, uint8_t rh) {
   relHum = rh;
   co2_current = co2;
 }
-
+*/
 void printRoot() {
   File root = SD.open("/");
   if (root) {
@@ -267,16 +274,6 @@ void setup(void)
   {
     error(("Air sensor error."));
   }
-  else {
-    while (!airSensor.dataAvailable()) {
-    }
-    initializeQueues(airSensor.getCO2(), airSensor.getHumidity()); //should confirm that this works with the returned data types
-    tempC = airSensor.getTemperature();
-  }
-
-#else
-  initializeQueues(400, 40);
-  tempC = 25;
 #endif //SENSOR_EXISTS
 }
 void loop(void)
@@ -349,8 +346,8 @@ void loop(void)
       //green LED indicates data is being collected
       digitalWrite(greenLEDpin, HIGH);
       //gets current sensor data
-      co2_current = addCo2Data(airSensor.getCO2());
-      relHum = addRHData(airSensor.getHumidity());
+      co2_current = co2Data.addData(airSensor.getCO2());
+      relHum = rhData.addData(airSensor.getHumidity());
     }
 
 #endif //SENSOR_EXISTS
