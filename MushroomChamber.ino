@@ -84,12 +84,6 @@ int co2_current = 0;
 uint8_t tempC = 0;
 uint8_t relHum = 0;
 
-/*
-ArduinoQueue<int> co2Readings(12);
-ArduinoQueue<uint8_t> rhReadings(12);
-long co2Sum = 0;
-int rhSum = 0;
-*/
 SensorData co2Data(12);
 SensorData rhData(12);
 
