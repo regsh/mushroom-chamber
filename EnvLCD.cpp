@@ -59,7 +59,6 @@ void EnvLCD::CheckButtons()
 	uint8_t buttons = lcd.readButtons();
 	
 	if (buttons) {
-		Serial.println("button clicked");
 		bool changed = false;
 		if (buttons & BUTTON_SELECT) {
 			if (!lightOn) {
@@ -70,22 +69,20 @@ void EnvLCD::CheckButtons()
 		}
 		if (buttons & BUTTON_RIGHT) {
 			nextState();
-			Serial.println("Next state:");
-			Serial.println(state);
 			changed = true;
 		}
 		else if (state != 0) {
 			uint8_t factorIdx = (state - 1) / 3;
-			Serial.print("factor idx: ");
-			Serial.println(factorIdx);
 			uint8_t screen = (state - 1) % 3;
 			if (!screen == 2) {
 				if (buttons & BUTTON_UP) {
 					if (screen == 0) {
+						Serial.println("raising ");
 						factors[factorIdx]->SetLow(true);
 					}
 					else factors[factorIdx]->SetHigh(true);
 					changed = true;
+					Serial.println("Something changed");
 				}
 				else if (buttons & BUTTON_DOWN) {
 					if (screen == 0) {
