@@ -4,17 +4,19 @@
 
 #include "EnvFactor.h"
 
-EnvFactor::EnvFactor(char* n, int low, int high)
+EnvFactor::EnvFactor(String n, int(*current)(void), int low, int high, int intvl)
 {
 	name = n;
-
+	func = current;
 	setPtLow = low;
 	setPtHigh = high;
+	setInterval = intvl;
 }
 
 String EnvFactor::GetName()
 {
-	return *name;
+	String result(*name);
+	return result;
 }
 
 int EnvFactor::GetLow()
@@ -22,9 +24,10 @@ int EnvFactor::GetLow()
 	return setPtLow;
 }
 
-void EnvFactor::SetLow(int l)
+void EnvFactor::SetLow(bool raise)
 {
-	setPtLow = l;
+	if (raise) setPtLow += setInterval;
+	else setPtLow -= setInterval;
 }
 
 int EnvFactor::GetHigh()
@@ -32,12 +35,20 @@ int EnvFactor::GetHigh()
 	return setPtHigh;
 }
 
-void EnvFactor::SetHigh(int h)
+void EnvFactor::SetHigh(bool raise)
 {
-	setPtHigh = h;
+	if (raise) setPtHigh += raise;
+	else setPtHigh -= raise;
+}
+
+int EnvFactor::GetCurrent()
+{
+	return func();
 }
 
 bool EnvFactor::CheckValue(int v)
 {
 	return (v >= setPtLow && v <= setPtHigh);
 }
+
+

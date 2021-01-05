@@ -110,16 +110,16 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ChamberLCD.h" />
     <ClInclude Include="EnvFactor.h" />
+    <ClInclude Include="EnvLCD.h" />
     <ClInclude Include="SensorData.h">
       <FileType>CppCode</FileType>
     </ClInclude>
     <ClInclude Include="__vm\.MushroomChamber.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ChamberLCD.cpp" />
     <ClCompile Include="EnvFactor.cpp" />
+    <ClCompile Include="EnvLCD.cpp" />
     <ClCompile Include="SensorData.cpp" />
   </ItemGroup>
   <PropertyGroup>

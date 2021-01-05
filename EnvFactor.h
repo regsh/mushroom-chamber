@@ -10,16 +10,19 @@
 #endif
 class EnvFactor {
 private:
-	char* name;
+	String name;
 	int setPtLow;
 	int setPtHigh;
+	int setInterval;
+	int (*func)(void); //function to get current value of factor from sensor
 public:
-	EnvFactor(char* n, int low, int high);
+	EnvFactor(String n, int(*current)(void), int low, int high, int intvl);
 	String GetName();
 	int GetLow();
-	void SetLow(int l);
+	void SetLow(bool raise);
 	int GetHigh();
-	void SetHigh(int h);
+	void SetHigh(bool raise);
+	int GetCurrent();
 	bool CheckValue(int v);
 };
 

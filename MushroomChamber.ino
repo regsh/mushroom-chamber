@@ -5,6 +5,7 @@
 
 //Manipulate memory: https://www.arduino.cc/reference/en/language/variables/utilities/progmem/
 
+#include "EnvLCD.h"
 #include "EnvFactor.h"
 #include "ChamberLCD.h"
 #include <cppQueue.h>

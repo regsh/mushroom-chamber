@@ -25,10 +25,10 @@
     <ClInclude Include="SensorData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ChamberLCD.h">
+    <ClInclude Include="EnvFactor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="EnvFactor.h">
+    <ClInclude Include="EnvLCD.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -36,10 +36,10 @@
     <ClCompile Include="SensorData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ChamberLCD.cpp">
+    <ClCompile Include="EnvFactor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="EnvFactor.cpp">
+    <ClCompile Include="EnvLCD.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
