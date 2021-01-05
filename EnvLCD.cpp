@@ -17,19 +17,19 @@ void EnvLCD::updateDisplay()
 	else {
 		lcd.clear();
 		uint8_t factorIdx = (state - 1) / 3;
-		lcd.print(factors[factorIdx].GetName);
+		lcd.print(factors[factorIdx].GetName());
 		lcd.setCursor(0, 1);
 		if ((state - 1) % 3 == 0) {
 			lcd.print("MN: ");
-			lcd.print(factors[factorIdx].GetLow);
+			lcd.print(factors[factorIdx].GetLow());
 		}
 		else if((state -1)%3 == 1){
 			lcd.print("MX: ");
-			lcd.print(factors[factorIdx].GetHigh);
+			lcd.print(factors[factorIdx].GetHigh());
 		}
 		else {
 			lcd.print("CURR: ");
-			lcd.print(factors[factorIdx].GetCurrent);
+			lcd.print(factors[factorIdx].GetCurrent());
 		}
 	}
 }
@@ -46,6 +46,8 @@ EnvLCD::EnvLCD(EnvFactor* fctrs, uint8_t cnt, String homeMsg)
 	factors = fctrs;
 	homeMessage = homeMsg;
 	lcd = Adafruit_RGBLCDShield();
+	lightOn = false;
+	lcd.setBacklight(0);
 }
 
 void EnvLCD::CheckButtons()
@@ -53,6 +55,10 @@ void EnvLCD::CheckButtons()
 	uint8_t buttons = lcd.readButtons();
 	if (buttons) {
 		bool changed = false;
+		if (BUTTON_SELECT) {
+			if (!lightOn) lcd.setBacklight(0x5);
+			else lcd.setBacklight(0x0);
+		}
 		if (BUTTON_RIGHT) {
 			nextState();
 			changed = true;

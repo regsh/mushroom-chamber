@@ -15,8 +15,7 @@ EnvFactor::EnvFactor(String n, int(*current)(void), int low, int high, int intvl
 
 String EnvFactor::GetName()
 {
-	String result(*name);
-	return result;
+	return name;
 }
 
 int EnvFactor::GetLow()

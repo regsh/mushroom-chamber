@@ -41,19 +41,8 @@
 #define redLEDpin 5
 #define greenLEDpin 6
 
-// color definitions for setting the backlight
-#define OFF 0x0
-#define VIOLET 0x5
-#define WHITE 0x7
-
-//representation of GUI state for toggling through the display
-#define MAIN 0
-#define SET_CO2_MAX 1
-#define SET_RH_MIN 2
-#define SET_RH_MAX 3
-
 // The LCD shield connected to UNO using I2C bus (A4 and A5)
-Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
+EnvLCD lcd = EnvLCD()
 //RTC for data logger
 RTC_PCF8523 rtc;
 

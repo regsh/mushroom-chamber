@@ -18,6 +18,7 @@ class EnvLCD{
 		EnvFactor* factors;
 		String homeMessage;
 		Adafruit_RGBLCDShield lcd;
+		bool lightOn;
 
 		void nextState();
 		void updateDisplay();
