@@ -1,4 +1,3 @@
-//Data offloading functionality
 //Separate into files: http://www.gammon.com.au/forum/?id=12625
 //http://cse230.artifice.cc/lecture/splitting-code.html
 //Humidity: 80-95%, drop to 60-70% before harvest
@@ -6,7 +5,9 @@
 
 //Manipulate memory: https://www.arduino.cc/reference/en/language/variables/utilities/progmem/
 
-
+#include "EnvFactor.h"
+#include "ChamberLCD.h"
+#include <cppQueue.h>
 #include <MemoryFree.h> //for monitoring free RAM, diagnosing memory leaks
 #include <pgmStrToRAM.h>
 #include <SPI.h> //data logging shield SPI communication
@@ -84,8 +85,8 @@ int co2_current = 0;
 uint8_t tempC = 0;
 uint8_t relHum = 0;
 
-SensorData co2Data(12);
-SensorData rhData(12);
+SensorData co2Data(2,12);
+SensorData rhData(1,12);
 
 
 //Function for printing error information for debugging
@@ -126,36 +127,7 @@ void displayState(int state) {
       break;
   }
 }
-/*
-//Adds new reading to queue of co2 data points
-//Returns the new average over the last 12 readings
-int addCo2Data(int newData) {
-  co2Sum -= co2Readings.dequeue();
-  co2Readings.enqueue(newData);
-  co2Sum += newData;
-  return co2Sum / 12;
-}
-//Adds new reading to queue of rh data points
-//Returns the new average over last 12 readings
-uint8_t addRHData(uint8_t newData) {
-  rhSum -= rhReadings.dequeue();
-  rhReadings.enqueue(newData);
-  rhSum += newData;
-  return rhSum / 12;
-}
-//initializes co2 and rh data queues with values specified
-//could use expected environmental values or initial readings from sensor
-void initializeQueues(int co2, uint8_t rh) {
-  for (int i = 0; i < 12; i++) {
-    rhReadings.enqueue(rh);
-    co2Readings.enqueue(co2);
-  }
-  rhSum = rh * 12;
-  co2Sum = co2 * 12;
-  relHum = rh;
-  co2_current = co2;
-}
-*/
+
 void printRoot() {
   File root = SD.open("/");
   if (root) {
@@ -337,11 +309,13 @@ void loop(void)
     now = rtc.now();
 #if SENSOR_EXISTS
     if (airSensor.dataAvailable()) {
-      //green LED indicates data is being collected
+
       digitalWrite(greenLEDpin, HIGH);
-      //gets current sensor data
+      Serial.println(freeMemory());
       co2_current = co2Data.addData(airSensor.getCO2());
+      Serial.println(freeMemory());
       relHum = rhData.addData(airSensor.getHumidity());
+      Serial.println(freeMemory());
     }
 
 #endif //SENSOR_EXISTS
