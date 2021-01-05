@@ -16,7 +16,7 @@ private:
 	int setInterval;
 	int (*func)(void); //function to get current value of factor from sensor
 public:
-	EnvFactor(String n, int(*current)(void), int low, int high, int intvl);
+	EnvFactor(String n, int(*current)(), int low, int high, int intvl);
 	String GetName();
 	int GetLow();
 	void SetLow(bool raise);

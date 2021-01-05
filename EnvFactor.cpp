@@ -4,7 +4,7 @@
 
 #include "EnvFactor.h"
 
-EnvFactor::EnvFactor(String n, int(*current)(void), int low, int high, int intvl)
+EnvFactor::EnvFactor(String n, int(*current)(), int low, int high, int intvl)
 {
 	name = n;
 	func = current;

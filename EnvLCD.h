@@ -15,7 +15,7 @@ class EnvLCD{
 	private:
 		uint8_t count;
 		uint8_t state;
-		EnvFactor* factors;
+		EnvFactor** factors;
 		String homeMessage;
 		Adafruit_RGBLCDShield lcd;
 		bool lightOn;
@@ -24,7 +24,7 @@ class EnvLCD{
 		void updateDisplay();
 		void displayHome();
 	public:
-		EnvLCD(EnvFactor* fctrs, uint8_t cnt, String homeMsg);
+		EnvLCD(EnvFactor** fctrs, uint8_t cnt, String homeMsg);
 		void CheckButtons();
 
 };
