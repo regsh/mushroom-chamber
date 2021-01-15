@@ -14,9 +14,10 @@
 #include <ArduinoQueue.h> //for averaging data points to debounce relay behavior
 
 // how many milliseconds between retrieving data and logging it (ms).
-#define DATA_INTERVAL 5000 //mills between collection of data points
-#define LOG_INTERVAL  60000 // mills between entries (reduce to take more/faster data)
+#define DATA_INTERVAL 15000 //mills between collection of data points
+#define LOG_INTERVAL  300000 // mills between entries (reduce to take more/faster data)
 #define SYNC_INTERVAL 300000 // mills between calls to flush() - to write data to the card 
+#define PAUSE_INTERVAL 300000 //mills to pause relay behavior upon user click of 'SELECT' button
 
 #define ECHO_TO_SERIAL   1 // echo data to serial port
 
@@ -39,6 +40,7 @@
 #define SET_CO2_MAX 1
 #define SET_RH_MIN 2
 #define SET_RH_MAX 3
+#define PAUSED 4
 
 // The LCD shield connected to UNO using I2C bus (A4 and A5)
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
@@ -58,11 +60,12 @@ DateTime now;
 unsigned long syncTime = 0; // time of last sync()
 unsigned long lastReading = 0; //time of last data reading
 unsigned long lastLogging = 0; //time of last data log to SD card
-//unsigned long backlight = 0;
+unsigned long pauseStart = 0; //time relay was paused 
 
 bool backlightOn = false;
 bool fanOn = false;
 bool humOn = false;
+bool pause = false;
 int co2Max = 1000;
 uint8_t rhMin = 70;
 uint8_t rhMax = 95;
@@ -89,31 +92,43 @@ void error(const char *str)
 }
 //Function for displaying the appropriate info on screen of LCD
 //based on current state of program
-void displayState(int state) {
-  switch (state) {
-    case MAIN:
-      lcd.clear();
-      lcd.print(F("Hello mushrooms!"));
-      break;
-    case SET_CO2_MAX:
-      lcd.clear();
-      lcd.print(F("CO2 MAX:"));
-      lcd.setCursor(0, 1);
-      lcd.print(co2Max);
-      break;
-    case SET_RH_MIN:
-      lcd.clear();
-      lcd.print(F("RH MIN:"));
-      lcd.setCursor(0, 1);
-      lcd.print(rhMin);
-      break;
-    case SET_RH_MAX:
-      lcd.clear();
-      lcd.print(F("RH MAX:"));
-      lcd.setCursor(0, 1);
-      lcd.print(rhMax);
-      break;
-  }
+void displayState(int state) { //change back to switch case?
+    if (state == MAIN) {
+        lcd.clear();
+        lcd.print(("CO2: "));
+        lcd.print(co2_current);
+        lcd.print(("ppm"));
+        lcd.setCursor(0, 1);
+        lcd.print(F("Temp:"));
+        lcd.print(tempC);
+        lcd.print(F("C"));
+        lcd.print(F(" RH:"));
+        lcd.print(relHum);
+        lcd.print("%");
+    }
+    else if (state == SET_CO2_MAX) {
+        lcd.clear();
+        lcd.print(F("CO2 MAX:"));
+        lcd.setCursor(0, 1);
+        lcd.print(co2Max);
+    }
+    else if (state == SET_RH_MIN) {
+        lcd.clear();
+        lcd.print(F("RH MIN:"));
+        lcd.setCursor(0, 1);
+        lcd.print(rhMin);
+    }
+    else if (state == SET_RH_MAX) {
+        lcd.clear();
+        lcd.print(F("RH MAX:"));
+        lcd.setCursor(0, 1);
+        lcd.print(rhMax);
+    }
+    else if (state == PAUSED) {
+        lcd.clear();
+        lcd.print(F("PAUSED"));
+    }
+  
 }
 //Adds new reading to queue of co2 data points
 //Returns the new average over the last 12 readings
@@ -142,6 +157,16 @@ void initializeQueues(int co2, uint8_t rh) {
   co2Sum = co2 * 12;
   relHum = rh;
   co2_current = co2;
+}
+
+void pauseRelay() {
+    digitalWrite(FAN_RELAY, HIGH);
+    digitalWrite(HUM_RELAY, HIGH);
+    digitalWrite(RELAY_4, HIGH);
+    fanOn = false;
+    humOn = false;
+    state = PAUSED;
+    displayState(state);
 }
 
 void printRoot() {
@@ -248,9 +273,8 @@ void setup(void)
   //LCD SET-UP
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2);
-  lcd.print(F("Hello, mushrooms!"));
   lcd.setBacklight(OFF);
-
+  
 
   //SCD30 temp/humidity/CO2 sensor set-up
   if (airSensor.begin(Wire, false) == false)
@@ -264,6 +288,7 @@ void setup(void)
     }
     initializeQueues(airSensor.getCO2(), airSensor.getHumidity()); //should confirm that this works with the returned data types
     tempC = airSensor.getTemperature();
+    displayState(state);
   }
 }
 
@@ -323,21 +348,28 @@ void loop(void)
     }
 
     //LOGIC FOR RELAY
-    if (fanOn == false && (co2_current > co2Max || relHum < rhMin)) {
-      fanOn = true;
-      digitalWrite(FAN_RELAY, LOW);
+    if (pause && (millis() - pauseStart >= PAUSE_INTERVAL)) {
+        pause = false;
+        state = MAIN;
+        displayState(state);
     }
-    if (fanOn == true && co2_current < ((co2Max + 400) / 2) && relHum >= (rhMin + rhMax) / 2) {
-      fanOn = false;
-      digitalWrite(FAN_RELAY, HIGH);
-    }
-    if (humOn == false && relHum < rhMin) {
-      humOn = true;
-      digitalWrite(HUM_RELAY, LOW);
-    }
-    if (humOn == true && relHum >= (rhMin + rhMax) / 2) {
-      humOn = false;
-      digitalWrite(HUM_RELAY, HIGH);
+    if (!pause) {
+        if (fanOn == false && (co2_current > co2Max || relHum < rhMin)) {
+            fanOn = true;
+            digitalWrite(FAN_RELAY, LOW);
+        }
+        if (fanOn == true && co2_current < ((co2Max + 400) / 2) && relHum >= (rhMin + rhMax) / 2) {
+            fanOn = false;
+            digitalWrite(FAN_RELAY, HIGH);
+        }
+        if (humOn == false && relHum < rhMin) {
+            humOn = true;
+            digitalWrite(HUM_RELAY, LOW);
+        }
+        if (humOn == true && relHum >= (rhMin + rhMax) / 2) {
+            humOn = false;
+            digitalWrite(HUM_RELAY, HIGH);
+        }
     }
 
 #if ECHO_TO_SERIAL
@@ -454,7 +486,6 @@ void loop(void)
       if (backlightOn == false) {
         lcd.setBacklight(VIOLET);
         backlightOn = true;
-       // backlight = millis();
       }
       else {
         lcd.setBacklight(OFF);
@@ -464,7 +495,6 @@ void loop(void)
     if (buttons & BUTTON_RIGHT) {
       if (state == MAIN) {
         state = SET_CO2_MAX;
-
       }
       else if (state == SET_CO2_MAX) {
         state = SET_RH_MIN;
@@ -478,21 +508,18 @@ void loop(void)
       displayState(state);
     }
     if (buttons & BUTTON_SELECT) {
-      lcd.clear();
-      lcd.print(F("CO2: "));
-      lcd.print(co2_current);
-      lcd.print(F("ppm"));
-      lcd.setCursor(0, 1);
-      lcd.print(F("Temp:"));
-      lcd.print(tempC);
-      lcd.print(F("C"));
-      lcd.print(F(" RH:"));
-      lcd.print(relHum);
-      lcd.print("%");
-      delay(3000);
-      state = MAIN;
-      lcd.clear();
-      lcd.print(F("Hello, mushrooms!"));
+        if (!pause) {
+            pauseRelay();
+            pause = true;
+            pauseStart = millis();
+        }
+        else {
+            pause = false;
+            state = MAIN;
+            displayState(state);
+        }
+        
+      //pause relay behavior for 5 minutes or until SELECT button is pressed
     }
     delay(200);
   }
