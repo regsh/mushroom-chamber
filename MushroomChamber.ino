@@ -11,7 +11,6 @@
 #include <RTClib.h> //RTC on data logging shield
 #include <Adafruit_RGBLCDShield.h> //LCD shield
 #include <SparkFun_SCD30_Arduino_Library.h> //for CO2/temp/RH sensor (Sensiron SCD30)
-#include <ArduinoQueue.h> //for averaging data points to debounce relay behavior
 
 // how many milliseconds between retrieving data and logging it (ms).
 #define DATA_INTERVAL 15000 //mills between collection of data points
@@ -71,14 +70,16 @@ uint8_t rhMin = 70;
 uint8_t rhMax = 95;
 uint8_t state = MAIN;
 
-int co2_current = 0;
-uint8_t tempC = 0;
-uint8_t relHum = 0;
+uint8_t rhData[20];
+uint8_t rhShortAvg; //average value over the last 4 readings
 
-ArduinoQueue<int> co2Readings(12);
-ArduinoQueue<uint8_t> rhReadings(12);
-long co2Sum = 0;
-int rhSum = 0;
+uint8_t tempData[20];
+uint8_t tempShortAvg;
+
+int co2Data[20];
+int co2ShortAvg;
+
+uint8_t currentIdx = 0;
 
 //Function for printing error information for debugging
 //Turns on Red LED and stops program
@@ -97,14 +98,14 @@ void displayState(int state) { //change back to switch case?
     case MAIN:
         lcd.clear();
         lcd.print(("CO2: "));
-        lcd.print(co2_current);
+        lcd.print(co2ShortAvg);
         lcd.print(("ppm"));
         lcd.setCursor(0, 1);
         lcd.print(F("Temp:"));
-        lcd.print(tempC);
+        lcd.print(tempShortAvg);
         lcd.print(F("C"));
         lcd.print(F(" RH:"));
-        lcd.print(relHum);
+        lcd.print(rhShortAvg);
         lcd.print("%");
         break;
     case SET_CO2_MAX:
@@ -131,33 +132,47 @@ void displayState(int state) { //change back to switch case?
         break;
     }  
 }
-//Adds new reading to queue of co2 data points
-//Returns the new average over the last 12 readings
-int addCo2Data(int newData) {
-  co2Sum -= co2Readings.dequeue();
-  co2Readings.enqueue(newData);
-  co2Sum += newData;
-  return co2Sum / 12;
+
+void addData(uint8_t rh, uint8_t temp, int co2) {
+    rhData[currentIdx] = rh;
+    tempData[currentIdx] = temp;
+    co2Data[currentIdx] = co2;
+    currentIdx = (currentIdx + 1) % 20;
+    getAvgs();
 }
-//Adds new reading to queue of rh data points
-//Returns the new average over last 12 readings
-uint8_t addRHData(uint8_t newData) {
-  rhSum -= rhReadings.dequeue();
-  rhReadings.enqueue(newData);
-  rhSum += newData;
-  return rhSum / 12;
+
+void getAvgs() {
+    int sum = 0;
+    for (int i = 0; i < 4; i++) {
+        sum += rhData[(currentIdx + 20 - i) % 20];
+    }
+    rhShortAvg = sum / 4;
+
+    sum = 0;
+    for (int i = 0; i < 4; i++) {
+        sum += tempData[(currentIdx + 20 - i) % 20];
+    }
+    tempShortAvg = sum / 4;
+    sum = 0;
+    for (int i = 0; i < 4; i++) {
+        uint8_t idx = (currentIdx + 20 - i) % 20;
+        sum += co2Data[idx];
+    }
+    co2ShortAvg = sum / 4;
 }
+
 //initializes co2 and rh data queues with values specified
 //could use expected environmental values or initial readings from sensor
-void initializeQueues(int co2, uint8_t rh) {
-  for (int i = 0; i < 12; i++) {
-    rhReadings.enqueue(rh);
-    co2Readings.enqueue(co2);
+void initializeQueues(uint8_t rh, uint8_t temp, int co2) {
+  for (int i = 0; i < 20; i++) {
+        rhData[i] = rh;
+        tempData[i] = temp;
+        co2Data[i] = co2;
+
+        rhShortAvg = rh;
+        tempShortAvg = temp;
+        co2ShortAvg = co2;
   }
-  rhSum = rh * 12;
-  co2Sum = co2 * 12;
-  relHum = rh;
-  co2_current = co2;
 }
 
 void pauseRelay() {
@@ -287,8 +302,7 @@ void setup(void)
     //https://www.fpaynter.com/tag/i2c-freeze/
     while (!airSensor.dataAvailable()) {
     }
-    initializeQueues(airSensor.getCO2(), airSensor.getHumidity()); //should confirm that this works with the returned data types
-    tempC = airSensor.getTemperature();
+    initializeQueues(airSensor.getHumidity(),airSensor.getTemperature(), airSensor.getCO2()); //should confirm that this works with the returned data types
     displayState(state);
   }
 }
@@ -344,8 +358,7 @@ void loop(void)
       //green LED indicates data is being collected
       digitalWrite(greenLEDpin, HIGH);
       //gets current sensor data
-      co2_current = addCo2Data(airSensor.getCO2());
-      relHum = addRHData(airSensor.getHumidity());
+      addData(airSensor.getHumidity(), airSensor.getTemperature(), airSensor.getCO2());
     }
 
     //LOGIC FOR RELAY
@@ -355,19 +368,19 @@ void loop(void)
         displayState(state);
     }
     if (!pause) {
-        if (fanOn == false && (co2_current > co2Max || relHum < rhMin)) {
+        if (fanOn == false && (co2ShortAvg > co2Max || rhShortAvg < rhMin)) {
             fanOn = true;
             digitalWrite(FAN_RELAY, LOW);
         }
-        if (fanOn == true && co2_current < ((co2Max + 400) / 2) && relHum >= (rhMin + rhMax) / 2) {
+        if (fanOn == true && co2ShortAvg < ((co2Max + 400) / 2) && rhShortAvg >= (rhMin + rhMax) / 2) {
             fanOn = false;
             digitalWrite(FAN_RELAY, HIGH);
         }
-        if (humOn == false && relHum < rhMin) {
+        if (humOn == false && rhShortAvg < rhMin) {
             humOn = true;
             digitalWrite(HUM_RELAY, LOW);
         }
-        if (humOn == true && relHum >= (rhMin + rhMax) / 2) {
+        if (humOn == true && rhShortAvg >= (rhMin + rhMax) / 2) {
             humOn = false;
             digitalWrite(HUM_RELAY, HIGH);
         }
@@ -388,11 +401,11 @@ void loop(void)
     Serial.print(now.second(), DEC);
     Serial.print('"');
     Serial.print(", ");
-    Serial.print(co2_current);
+    Serial.print(co2ShortAvg);
     Serial.print(", ");
-    Serial.print(tempC);
+    Serial.print(tempShortAvg);
     Serial.print(", ");
-    Serial.print(relHum);
+    Serial.print(rhShortAvg);
     Serial.print(", ");
     Serial.print(fanOn);
     Serial.print(", ");
@@ -430,11 +443,11 @@ void loop(void)
     logfile.print(", ");
 
     // log sensor data
-    logfile.print(co2_current);
+    logfile.print(co2ShortAvg);
     logfile.print(", ");
-    logfile.print(tempC);
+    logfile.print(tempShortAvg);
     logfile.print(", ");
-    logfile.print(relHum);
+    logfile.print(rhShortAvg);
     logfile.print(", ");
     logfile.print(fanOn);
     logfile.print(", ");
