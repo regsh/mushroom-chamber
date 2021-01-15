@@ -93,7 +93,8 @@ void error(const char *str)
 //Function for displaying the appropriate info on screen of LCD
 //based on current state of program
 void displayState(int state) { //change back to switch case?
-    if (state == MAIN) {
+    switch (state) {
+    case MAIN:
         lcd.clear();
         lcd.print(("CO2: "));
         lcd.print(co2_current);
@@ -105,30 +106,30 @@ void displayState(int state) { //change back to switch case?
         lcd.print(F(" RH:"));
         lcd.print(relHum);
         lcd.print("%");
-    }
-    else if (state == SET_CO2_MAX) {
+        break;
+    case SET_CO2_MAX:
         lcd.clear();
         lcd.print(F("CO2 MAX:"));
         lcd.setCursor(0, 1);
         lcd.print(co2Max);
-    }
-    else if (state == SET_RH_MIN) {
+        break;
+    case SET_RH_MIN:
         lcd.clear();
         lcd.print(F("RH MIN:"));
         lcd.setCursor(0, 1);
         lcd.print(rhMin);
-    }
-    else if (state == SET_RH_MAX) {
+        break;
+    case SET_RH_MAX:
         lcd.clear();
         lcd.print(F("RH MAX:"));
         lcd.setCursor(0, 1);
         lcd.print(rhMax);
-    }
-    else if (state == PAUSED) {
+        break;
+    case PAUSED:
         lcd.clear();
         lcd.print(F("PAUSED"));
-    }
-  
+        break;
+    }  
 }
 //Adds new reading to queue of co2 data points
 //Returns the new average over the last 12 readings
