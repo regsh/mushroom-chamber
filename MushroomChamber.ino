@@ -253,7 +253,7 @@ void setup(void)
 
 
   //SCD30 temp/humidity/CO2 sensor set-up
-  if (airSensor.begin(Wire, true) == false)
+  if (airSensor.begin(Wire, false) == false)
   {
     error("Sensor error");
   }
