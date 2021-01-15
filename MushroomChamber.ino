@@ -1,33 +1,24 @@
-//Data offloading functionality
-//Separate into files: http://www.gammon.com.au/forum/?id=12625
-//http://cse230.artifice.cc/lecture/splitting-code.html
-//Humidity: 80-95%, drop to 60-70% before harvest
-//CO2: 500-1000
-
-//Manipulate memory: https://www.arduino.cc/reference/en/language/variables/utilities/progmem/
-
+//Controller for environmental chamber built for cultivationg mushrooms
+//Reads CO2, temp, humidity data and modulates power to outlet for humidifier/fans accordingly
+//Logs conditions at time intervals specified
+//Allows for user manipulation of set points via LCD interface
 
 #include <MemoryFree.h> //for monitoring free RAM, diagnosing memory leaks
 #include <pgmStrToRAM.h>
 #include <SPI.h> //data logging shield SPI communication
 #include <SD.h> //SD card data logging
-#include <Wire.h> //I2C communication
+#include <Wire.h> //I2C communication shared by LCD and SCD30 sensor
 #include <RTClib.h> //RTC on data logging shield
 #include <Adafruit_RGBLCDShield.h> //LCD shield
-#include <utility/Adafruit_MCP23017.h> //microchip in LCD?
 #include <SparkFun_SCD30_Arduino_Library.h> //for CO2/temp/RH sensor (Sensiron SCD30)
-#include <stdint.h>
 #include <ArduinoQueue.h> //for averaging data points to debounce relay behavior
 
-
-// how many milliseconds between grabbing data and logging it. 1000 ms is once a second
+// how many milliseconds between retrieving data and logging it (ms).
 #define DATA_INTERVAL 5000 //mills between collection of data points
 #define LOG_INTERVAL  60000 // mills between entries (reduce to take more/faster data)
-#define SYNC_INTERVAL 60000 // mills between calls to flush() - to write data to the card 
-
+#define SYNC_INTERVAL 300000 // mills between calls to flush() - to write data to the card 
 
 #define ECHO_TO_SERIAL   1 // echo data to serial port
-#define SENSOR_EXISTS   0 //whether the program is running on real (true) or simulated (false) sensor data
 
 //digital pins for controlling relay
 #define FAN_RELAY 2 //Relay controlling the fan (IN2)
@@ -54,10 +45,8 @@ Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 //RTC for data logger
 RTC_PCF8523 rtc;
 
-#if SENSOR_EXISTS
 //SCD30 Co2,Temp,RH sensor
 SCD30 airSensor;
-#endif //SENSOR_EXISTS
 
 // for the data logging shield, we use digital pin 10 for the SD cs line
 const int chipSelect = 10;
@@ -69,7 +58,7 @@ DateTime now;
 unsigned long syncTime = 0; // time of last sync()
 unsigned long lastReading = 0; //time of last data reading
 unsigned long lastLogging = 0; //time of last data log to SD card
-unsigned long backlight = 0;
+//unsigned long backlight = 0;
 
 bool backlightOn = false;
 bool fanOn = false;
@@ -218,6 +207,7 @@ void setup(void)
 
   // connect to RTC
   Wire.begin();
+
   if (! rtc.begin()) {
     error("RTC failed");
   }
@@ -261,29 +251,25 @@ void setup(void)
   lcd.print(F("Hello, mushrooms!"));
   lcd.setBacklight(OFF);
 
-#if SENSOR_EXISTS
+
   //SCD30 temp/humidity/CO2 sensor set-up
   if (airSensor.begin(Wire, true) == false)
   {
-    error(F("Air sensor not detected. Please check wiring. Freezing..."));
+    error("Sensor error");
   }
   else {
+    Wire.setWireTimeout(3000, true); //sensor can stretch clock up to 150ms
+    //https://www.fpaynter.com/tag/i2c-freeze/
     while (!airSensor.dataAvailable()) {
     }
     initializeQueues(airSensor.getCO2(), airSensor.getHumidity()); //should confirm that this works with the returned data types
     tempC = airSensor.getTemperature();
   }
-
-#else
-  initializeQueues(400, 40);
-  tempC = 25;
-#endif //SENSOR_EXISTS
 }
+
 void loop(void)
 {
   //The SCD30 has data ready every two seconds, can reconfigure for more/less frequent data collection
-  //Allows Serial manipulation of mock sensor data in the case the sensor is not connected
-  //new line behavior for non 'd' and 'r' characters weird here
   if (Serial.available() > 0) {
     logfile.close();
     char c = Serial.read();
@@ -293,28 +279,12 @@ void loop(void)
     String input;
     while (Serial.available()) Serial.readString();
     switch (c) {
-#if !(SENSOR_EXISTS)
-      /*
-      case 'd':
-        Serial.println(F("CO2"));
-        while (Serial.available() == 0) {}
-        numData = Serial.readString().toInt();
-        Serial.println(numData);
-        co2_current = addCo2Data(numData);
-        while (Serial.available() > 0) Serial.read();
-        Serial.println(F("RH:"));
-        while (Serial.available() == 0) {
-        }
-        numData = Serial.readString().toInt();
-        Serial.println(numData);
-        relHum = addRHData(numData);
-        break;
-        */
-#endif
+      //prints directory from SD card on Serial monitor
       case 'r':
         printRoot();
         if (Serial.available()) Serial.read();
         break;
+      //initiates file open function. file number must follow
       case 'o':
         if (Serial.available() > 0) Serial.readString();
         while (Serial.available() == 0) {}
@@ -344,7 +314,6 @@ void loop(void)
   if (millis() - lastReading >= DATA_INTERVAL) {
     // fetch the time
     now = rtc.now();
-#if SENSOR_EXISTS
     if (airSensor.dataAvailable()) {
       //green LED indicates data is being collected
       digitalWrite(greenLEDpin, HIGH);
@@ -352,8 +321,6 @@ void loop(void)
       co2_current = addCo2Data(airSensor.getCO2());
       relHum = addRHData(airSensor.getHumidity());
     }
-
-#endif //SENSOR_EXISTS
 
     //LOGIC FOR RELAY
     if (fanOn == false && (co2_current > co2Max || relHum < rhMin)) {
@@ -406,8 +373,6 @@ void loop(void)
     Serial.print(", ");
     Serial.print(freeMemory());
     Serial.println();
-
-
 #endif //ECHO_TO_SERIAL
     lastReading = millis();
   }
@@ -455,11 +420,9 @@ void loop(void)
     digitalWrite(greenLEDpin, LOW);
 
   }
-  if (backlightOn && (millis() - backlight) > 15000) {
-    backlightOn = false;
-    lcd.setBacklight(OFF);
-  }
+  //Checks for input on LCD buttons
   uint8_t buttons = lcd.readButtons();
+ 
   //add error handling for if min is greater than max, less than 0, etc.
   if (buttons) {
     if (buttons & BUTTON_UP) {
@@ -491,7 +454,7 @@ void loop(void)
       if (backlightOn == false) {
         lcd.setBacklight(VIOLET);
         backlightOn = true;
-        backlight = millis();
+       // backlight = millis();
       }
       else {
         lcd.setBacklight(OFF);
@@ -533,7 +496,6 @@ void loop(void)
     }
     delay(200);
   }
-
   digitalWrite(greenLEDpin, LOW);
 
   // Now we write data to disk! Don't sync too often - requires 2048 bytes of I/O to SD card
@@ -545,4 +507,5 @@ void loop(void)
   digitalWrite(redLEDpin, HIGH);
   //logfile.flush();
   digitalWrite(redLEDpin, LOW);
+
 }
