@@ -3,6 +3,9 @@
 //Logs conditions at time intervals specified
 //Allows for user manipulation of set points via LCD interface
 
+//TO-DO- change logging behavior to take average from all 20 readings
+//Use variable to determine number of readings to average for relay behavior
+
 #include <MemoryFree.h> //for monitoring free RAM, diagnosing memory leaks
 #include <pgmStrToRAM.h>
 #include <SPI.h> //data logging shield SPI communication
