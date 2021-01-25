@@ -428,7 +428,18 @@ void loop(void)
 
   if (millis() - lastLogging >= LOG_INTERVAL) {
     lastLogging = millis();
-
+    long co2Avg;
+    unsigned int tempAvg;
+    unsigned int rhAvg;
+    for(uint8_t i = 0; i < 20; i ++){
+      co2Avg += co2Data[i];
+      tempAvg += tempData[i];
+      rhAvg += rhData[i];
+    }
+    co2Avg = co2Avg/20;
+    tempAvg = tempAvg/20;
+    rhAvg = rhAvg/20;
+    
     // log time
     logfile.print('"');
     logfile.print(now.year(), DEC);
@@ -446,11 +457,11 @@ void loop(void)
     logfile.print(", ");
 
     // log sensor data
-    logfile.print(co2ShortAvg);
+    logfile.print(co2Avg);
     logfile.print(", ");
-    logfile.print(tempShortAvg);
+    logfile.print(tempAvg);
     logfile.print(", ");
-    logfile.print(rhShortAvg);
+    logfile.print(rhAvg);
     logfile.print(", ");
     logfile.print(fanOn);
     logfile.print(", ");
