@@ -410,7 +410,6 @@ void loop(void)
             digitalWrite(HUM_RELAY, HIGH);
         }
     }
-
 #if ECHO_TO_SERIAL
     Serial.print('"');
     Serial.print(now.year(), DEC);
@@ -447,7 +446,6 @@ void loop(void)
 #endif //ECHO_TO_SERIAL
     lastReading = millis();
   }
-
   if (millis() - lastLogging >= LOG_INTERVAL) {
     lastLogging = millis();
     long co2Avg;
