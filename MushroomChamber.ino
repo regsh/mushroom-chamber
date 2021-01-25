@@ -42,7 +42,9 @@
 #define SET_CO2_MAX 1
 #define SET_RH_MIN 2
 #define SET_RH_MAX 3
-#define PAUSED 4
+#define SET_TEMP_MIN 4
+#define SET_TEMP_MAX 5
+#define PAUSED 6
 
 // The LCD shield connected to UNO using I2C bus (A4 and A5)
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
@@ -71,6 +73,8 @@ bool pause = false;
 int co2Max = 1000;
 uint8_t rhMin = 70;
 uint8_t rhMax = 95;
+uint8_t tempMin = 18;
+uint8_t tempMax = 27;
 uint8_t state = MAIN;
 
 uint8_t rhData[20];
@@ -128,6 +132,18 @@ void displayState(int state) { //change back to switch case?
         lcd.print(F("RH MAX:"));
         lcd.setCursor(0, 1);
         lcd.print(rhMax);
+        break;
+    case SET_TEMP_MIN:
+        lcd.clear();
+        lcd.print(F("TEMP MIN:"));
+        lcd.setCursor(0, 1);
+        lcd.print(tempMin);
+        break;
+    case SET_TEMP_MAX:
+        lcd.clear();
+        lcd.print(F("TEMP MAX:"));
+        lcd.setCursor(0, 1);
+        lcd.print(tempMax);
         break;
     case PAUSED:
         lcd.clear();
@@ -371,11 +387,17 @@ void loop(void)
         displayState(state);
     }
     if (!pause) {
-        if (fanOn == false && (co2ShortAvg > co2Max || rhShortAvg < rhMin)) {
+        if (fanOn == false && 
+          (co2ShortAvg > co2Max || 
+          rhShortAvg < rhMin || 
+          tempShortAvg > tempMax || 
+          tempShortAvg < tempMin)) {
             fanOn = true;
             digitalWrite(FAN_RELAY, LOW);
         }
-        if (fanOn == true && co2ShortAvg < ((co2Max + 400) / 2) && rhShortAvg >= (rhMin + rhMax) / 2) {
+        if (fanOn == true && 
+        co2ShortAvg < ((co2Max + 400) / 2) && 
+        rhShortAvg >= rhMax) {
             fanOn = false;
             digitalWrite(FAN_RELAY, HIGH);
         }
@@ -383,7 +405,7 @@ void loop(void)
             humOn = true;
             digitalWrite(HUM_RELAY, LOW);
         }
-        if (humOn == true && rhShortAvg >= (rhMin + rhMax) / 2) {
+        if (humOn == true && rhShortAvg >= rhMax) {
             humOn = false;
             digitalWrite(HUM_RELAY, HIGH);
         }
@@ -495,6 +517,14 @@ void loop(void)
       else if (state == SET_RH_MAX) {
         if (rhMax < 100)rhMax = rhMax + 5;
       }
+      else if (state == SET_TEMP_MIN) {
+        if (tempMin < tempMax - 5) tempMin = tempMin + 1;
+      }
+      else if (state == SET_TEMP_MAX) {
+        tempMax += 1;
+      }
+
+      
       displayState(state);
     }
     if (buttons & BUTTON_DOWN) {
@@ -506,6 +536,12 @@ void loop(void)
       }
       if (state == SET_RH_MAX && rhMax > rhMin + 5) {
         rhMax = rhMax - 5;
+      }
+      if (state == SET_TEMP_MIN && rhMin > 0) {
+        tempMin -= 1;
+      }
+      if (state == SET_TEMP_MAX && tempMax > rhMin + 5) {
+        rhMax = rhMax - 1;
       }
       displayState(state);
     }
@@ -531,8 +567,15 @@ void loop(void)
         state = SET_RH_MAX;
       }
       else if (state == SET_RH_MAX) {
+        state = SET_TEMP_MIN;
+      }
+      else if (state == SET_TEMP_MIN) {
+        state = SET_TEMP_MAX;
+      }
+      else if (state == SET_TEMP_MAX) {
         state = MAIN;
       }
+      
       displayState(state);
     }
     if (buttons & BUTTON_SELECT) {
