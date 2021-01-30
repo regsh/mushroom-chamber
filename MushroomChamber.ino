@@ -1,3 +1,5 @@
+
+
 //Controller for environmental chamber built for cultivationg mushrooms
 //Reads CO2, temp, humidity data and modulates power to outlet for humidifier/fans accordingly
 //Logs conditions at time intervals specified
@@ -11,6 +13,7 @@
 #include <RTClib.h> //RTC on data logging shield
 #include <Adafruit_RGBLCDShield.h> //LCD shield
 #include <SparkFun_SCD30_Arduino_Library.h> //for CO2/temp/RH sensor (Sensiron SCD30)
+#include <EEPROM.h> //for persistent data storage of set points
 
 // how many milliseconds between retrieving data and logging it (ms).
 #define DATA_INTERVAL 15000 //mills between collection of data points
@@ -43,6 +46,12 @@
 #define SET_TEMP_MAX 5
 #define PAUSED 6
 
+#define CO2_MEM_LOC 0
+#define TEMP_MIN_MEM_LOC 1
+#define TEMP_MAX_MEM_LOC 2
+#define RH_MIN_MEM_LOC 3
+#define RH_MAX_MEM_LOC 4
+
 // The LCD shield connected to UNO using I2C bus (A4 and A5)
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 //RTC for data logger
@@ -67,11 +76,11 @@ bool backlightOn = false;
 bool fanOn = false;
 bool humOn = false;
 bool pause = false;
-int co2Max = 1000;
-uint8_t rhMin = 70;
-uint8_t rhMax = 95;
-uint8_t tempMin = 18;
-uint8_t tempMax = 27;
+uint8_t co2Max;
+uint8_t rhMin;
+uint8_t rhMax;
+uint8_t tempMin;
+uint8_t tempMax;
 uint8_t state = MAIN;
 
 uint8_t rhData[20];
@@ -116,7 +125,7 @@ void displayState(int state) { //change back to switch case?
         lcd.clear();
         lcd.print(F("CO2 MAX:"));
         lcd.setCursor(0, 1);
-        lcd.print(co2Max);
+        lcd.print(co2Max * 100);
         break;
     case SET_RH_MIN:
         lcd.clear();
@@ -231,9 +240,12 @@ void setup(void)
   //Signal for toggling relays
   pinMode(FAN_RELAY, OUTPUT);
   pinMode(HUM_RELAY, OUTPUT);
-  pinMode(RELAY_4, OUTPUT);
 
-  digitalWrite(RELAY_4, HIGH);
+  co2Max = EEPROM.read(CO2_MEM_LOC);
+  rhMin = EEPROM.read(RH_MIN_MEM_LOC);
+  rhMax = EEPROM.read(RH_MAX_MEM_LOC);
+  tempMin = EEPROM.read(TEMP_MIN_MEM_LOC);
+  tempMax = EEPROM.read(TEMP_MAX_MEM_LOC);
 
   // initialize the SD card
   Serial.print(F("Initializing SD card..."));
@@ -307,7 +319,6 @@ void setup(void)
   lcd.begin(16, 2);
   lcd.setBacklight(OFF);
   
-
   //SCD30 temp/humidity/CO2 sensor set-up
   if (airSensor.begin(Wire, true) == false)
   {
@@ -386,7 +397,7 @@ void loop(void)
     }
     if (!pause) {
         if (fanOn == false && 
-          (co2ShortAvg > co2Max || 
+          (co2ShortAvg > (co2Max * 100) || 
           rhShortAvg < rhMin || 
           tempShortAvg > tempMax || 
           tempShortAvg < tempMin)) {
@@ -394,7 +405,7 @@ void loop(void)
             digitalWrite(FAN_RELAY, LOW);
         }
         if (fanOn == true && 
-        co2ShortAvg < ((co2Max + 400) / 2) && 
+        co2ShortAvg < 500 && 
         rhShortAvg >= rhMax) {
             fanOn = false;
             digitalWrite(FAN_RELAY, HIGH);
@@ -433,7 +444,7 @@ void loop(void)
     Serial.print(", ");
     Serial.print(humOn);
     Serial.print(", ");
-    Serial.print(co2Max);
+    Serial.print(co2Max * 100);
     Serial.print(", ");
     Serial.print(rhMin);
     Serial.print(", ");
@@ -486,7 +497,7 @@ void loop(void)
     logfile.print(", ");
     logfile.print(humOn);
     logfile.print(", ");
-    logfile.print(co2Max);
+    logfile.print(co2Max * 100);
     logfile.print(", ");
     logfile.print(rhMin);
     logfile.print(", ");
@@ -505,8 +516,8 @@ void loop(void)
   //add error handling for if min is greater than max, less than 0, etc.
   if (buttons) {
     if (buttons & BUTTON_UP) {
-      if (state == SET_CO2_MAX && co2Max < 10000) {
-        co2Max = co2Max + 100;
+      if (state == SET_CO2_MAX && co2Max < 100) {
+        co2Max = co2Max + 1;
       }
       else if (state == SET_RH_MIN) {
         if (rhMin < 95 && rhMax > rhMin + 10) rhMin = rhMin + 5;
@@ -525,8 +536,8 @@ void loop(void)
       displayState(state);
     }
     if (buttons & BUTTON_DOWN) {
-      if (state == SET_CO2_MAX && co2Max > 400) {
-        co2Max = co2Max - 100;
+      if (state == SET_CO2_MAX && co2Max > 4) {
+        co2Max = co2Max - 1;
       }
       if (state == SET_RH_MIN && rhMin > 0) {
         rhMin = rhMin - 5;
@@ -558,21 +569,25 @@ void loop(void)
         state = SET_CO2_MAX;
       }
       else if (state == SET_CO2_MAX) {
+        EEPROM.update(CO2_MEM_LOC, co2Max);
         state = SET_RH_MIN;
       }
       else if (state == SET_RH_MIN) {
+        EEPROM.update(RH_MIN_MEM_LOC, rhMin);
         state = SET_RH_MAX;
       }
       else if (state == SET_RH_MAX) {
+        EEPROM.update(RH_MAX_MEM_LOC, rhMax);
         state = SET_TEMP_MIN;
       }
       else if (state == SET_TEMP_MIN) {
+        EEPROM.update(TEMP_MIN_MEM_LOC, tempMin);
         state = SET_TEMP_MAX;
       }
       else if (state == SET_TEMP_MAX) {
+        EEPROM.update(TEMP_MAX_MEM_LOC, tempMax);
         state = MAIN;
       }
-      
       displayState(state);
     }
     if (buttons & BUTTON_SELECT) {
