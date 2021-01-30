@@ -616,5 +616,7 @@ void loop(void)
   digitalWrite(redLEDpin, HIGH);
   logfile.flush();
   digitalWrite(redLEDpin, LOW);
+  state = MAIN;
+  displayState(state);
 
 }
