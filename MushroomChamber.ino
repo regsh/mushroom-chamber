@@ -115,8 +115,8 @@ void displayState(int state) { //change back to switch case?
         lcd.print(("ppm"));
         lcd.setCursor(0, 1);
         lcd.print(F("Temp:"));
-        lcd.print(tempShortAvg);
-        lcd.print(F("C"));
+        lcd.print(convertCtoF(tempShortAvg));
+        lcd.print(F("F"));
         lcd.print(F(" RH:"));
         lcd.print(rhShortAvg);
         lcd.print("%");
@@ -143,13 +143,13 @@ void displayState(int state) { //change back to switch case?
         lcd.clear();
         lcd.print(F("TEMP MIN:"));
         lcd.setCursor(0, 1);
-        lcd.print(tempMin);
+        lcd.print(convertCtoF(tempMin));
         break;
     case SET_TEMP_MAX:
         lcd.clear();
         lcd.print(F("TEMP MAX:"));
         lcd.setCursor(0, 1);
-        lcd.print(tempMax);
+        lcd.print(convertCtoF(tempMax));
         break;
     case PAUSED:
         lcd.clear();
@@ -164,6 +164,12 @@ void addData(uint8_t rh, uint8_t temp, int co2) {
     co2Data[currentIdx] = co2;
     currentIdx = (currentIdx + 1) % 20;
     getAvgs();
+}
+
+uint8_t convertCtoF(uint8_t tempC){
+   uint8_t result = tempC * (9/5);
+   result += 32;
+   return result;
 }
 
 void getAvgs() {
@@ -436,7 +442,7 @@ void loop(void)
     Serial.print(", ");
     Serial.print(co2ShortAvg);
     Serial.print(", ");
-    Serial.print(tempShortAvg);
+    Serial.print(convertCtoF(tempShortAvg));
     Serial.print(", ");
     Serial.print(rhShortAvg);
     Serial.print(", ");
@@ -489,7 +495,7 @@ void loop(void)
     // log sensor data
     logfile.print(co2Avg);
     logfile.print(", ");
-    logfile.print(tempAvg);
+    logfile.print(convertCtoF(tempAvg));
     logfile.print(", ");
     logfile.print(rhAvg);
     logfile.print(", ");
