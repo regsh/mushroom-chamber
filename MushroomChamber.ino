@@ -3,9 +3,6 @@
 //Logs conditions at time intervals specified
 //Allows for user manipulation of set points via LCD interface
 
-//TO-DO- change logging behavior to take average from all 20 readings
-//Use variable to determine number of readings to average for relay behavior
-
 #include <MemoryFree.h> //for monitoring free RAM, diagnosing memory leaks
 #include <pgmStrToRAM.h>
 #include <SPI.h> //data logging shield SPI communication
@@ -24,9 +21,9 @@
 #define ECHO_TO_SERIAL   1 // echo data to serial port
 
 //digital pins for controlling relay
-#define FAN_RELAY 2 //Relay controlling the fan (IN2)
-#define HUM_RELAY 3 //Relay controlling the humidifier (IN3)
-#define RELAY_4 4
+#define FAN_RELAY 3 //Relay controlling the fan (IN2)
+#define HUM_RELAY 4 //Relay controlling the humidifier (IN3)
+#define RELAY_4 2
 
 //Digital pins connected to data logger LEDs
 #define redLEDpin 5
@@ -312,7 +309,7 @@ void setup(void)
   
 
   //SCD30 temp/humidity/CO2 sensor set-up
-  if (airSensor.begin(Wire, false) == false)
+  if (airSensor.begin(Wire, true) == false)
   {
     error("Sensor error");
   }
@@ -378,6 +375,7 @@ void loop(void)
       digitalWrite(greenLEDpin, HIGH);
       //gets current sensor data
       addData(airSensor.getHumidity(), airSensor.getTemperature(), airSensor.getCO2());
+      displayState(state);
     }
 
     //LOGIC FOR RELAY
@@ -447,10 +445,11 @@ void loop(void)
     lastReading = millis();
   }
   if (millis() - lastLogging >= LOG_INTERVAL) {
+    //TODO: reset state and backlight
     lastLogging = millis();
-    long co2Avg;
-    unsigned int tempAvg;
-    unsigned int rhAvg;
+    long co2Avg = 0;
+    unsigned int tempAvg = 0;
+    unsigned int rhAvg = 0;
     for(uint8_t i = 0; i < 20; i ++){
       co2Avg += co2Data[i];
       tempAvg += tempData[i];
@@ -586,8 +585,7 @@ void loop(void)
             pause = false;
             state = MAIN;
             displayState(state);
-        }
-        
+        }        
       //pause relay behavior for 5 minutes or until SELECT button is pressed
     }
     delay(200);
@@ -601,7 +599,7 @@ void loop(void)
 
   // blink LED to show we are syncing data to the card & updating FAT!
   digitalWrite(redLEDpin, HIGH);
-  //logfile.flush();
+  logfile.flush();
   digitalWrite(redLEDpin, LOW);
 
 }
