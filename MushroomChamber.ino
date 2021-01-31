@@ -167,9 +167,10 @@ void addData(uint8_t rh, uint8_t temp, int co2) {
 }
 
 uint8_t convertCtoF(uint8_t tempC){
-   uint8_t result = tempC * (9/5);
-   result += 32;
-   return result;
+   int product = tempC * 9;
+   product = product/5;
+   product += 32;
+   return (uint8_t)product;
 }
 
 void getAvgs() {
@@ -317,7 +318,7 @@ void setup(void)
   logfile.println(F("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 
 #if ECHO_TO_SERIAL
-  Serial.println(F("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
+  Serial.println(F("Time, Co2, Temp(C), Temp(F), RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 #endif //ECHO_TO_SERIAL
 
   //LCD SET-UP
@@ -441,6 +442,8 @@ void loop(void)
     Serial.print('"');
     Serial.print(", ");
     Serial.print(co2ShortAvg);
+    Serial.print(", ");
+    Serial.print((tempShortAvg));
     Serial.print(", ");
     Serial.print(convertCtoF(tempShortAvg));
     Serial.print(", ");
