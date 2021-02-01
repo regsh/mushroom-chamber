@@ -25,7 +25,7 @@
 
 //digital pins for controlling relay
 #define FAN_RELAY 3 //Relay controlling the fan (IN2)
-#define HUM_RELAY 4 //Relay controlling the humidifier (IN3)
+#define HUM_RELAY 4   //Relay controlling the humidifier (IN3)
 #define RELAY_4 2
 
 //Digital pins connected to data logger LEDs
@@ -329,7 +329,8 @@ void setup(void)
   lcd.setBacklight(OFF);
   
   //SCD30 temp/humidity/CO2 sensor set-up
-  if (airSensor.begin(Wire, true) == false)
+  //if(airSensor.begin(Wire,true) == false) when you want auto-calibration turned on
+  if (airSensor.begin(Wire, false) == false)
   {
     error("Sensor error");
   }
