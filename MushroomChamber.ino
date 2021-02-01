@@ -240,6 +240,8 @@ void printRoot() {
 void setup(void)
 {
   Serial.begin(9600);
+  digitalWrite(SDA,1);
+  digitalWrite(SCL,1);
 
   // Debugging LEDs for data logger
   pinMode(redLEDpin, OUTPUT);
