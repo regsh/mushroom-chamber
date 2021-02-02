@@ -76,6 +76,7 @@ bool backlightOn = false;
 bool fanOn = false;
 bool humOn = false;
 bool pause = false;
+long humOffTime = 0; //variable for storing timepoint when humidifier turns off 
 uint8_t co2Max;
 uint8_t rhMin;
 uint8_t rhMax;
@@ -114,14 +115,14 @@ void displayState(int state) { //change back to switch case?
     case MAIN:
         lcd.clear();
         lcd.print(("CO2: "));
-        lcd.print(co2ShortAvg);
+        lcd.print(co2Current);
         lcd.print(("ppm"));
         lcd.setCursor(0, 1);
         lcd.print(F("Temp:"));
-        lcd.print(convertCtoF(tempShortAvg));
+        lcd.print(convertCtoF(tempCurrent));
         lcd.print(F("F"));
         lcd.print(F(" RH:"));
-        lcd.print(rhShortAvg);
+        lcd.print(rhCurrent);
         lcd.print("%");
         break;
     case SET_CO2_MAX:
@@ -352,7 +353,7 @@ void loop(void)
   if(humOn){digitalWrite(HUM_RELAY, LOW);}
   else {digitalWrite(HUM_RELAY, HIGH);}
   if(fanOn){digitalWrite(FAN_RELAY,LOW);}
-  else{digitalWrite(FAN_RELAY,HIGH);
+  else{digitalWrite(FAN_RELAY,HIGH);}
   
   //The SCD30 has data ready every two seconds, can reconfigure for more/less frequent data collection
   if (Serial.available() > 0) {
@@ -421,26 +422,28 @@ void loop(void)
           (co2ShortAvg > (co2Max * 100) || 
           rhShortAvg < rhMin /*|| tempShortAvg > tempMax || tempShortAvg < tempMin */
           )) {
-            Serial.println(F("turning on fan"));
+            //Serial.println(F("turning on fan"));
             fanOn = true;
         }
         //add 10 sec delay after humidifier goes off
         else if (fanOn == true && 
-          co2ShortAvg < 500 && 
-          rhShortAvg >= rhMax) 
+          co2ShortAvg < 1000 && 
+          humOn == false &&
+          millis() - humOffTime >= 10000) 
          {
-              Serial.println(F("turning off fan"));
+              //Serial.println(F("turning off fan"));
               fanOn = false;
         }
         if (humOn == false && 
           rhShortAvg < rhMin) {
-            Serial.println(F("turning ON hum"));
+            //Serial.println(F("turning ON hum"));
             humOn = true;
         }
         else if (humOn == true && 
           rhShortAvg >= rhMax) {
-            Serial.println(F("turning OFF hum"));
+            //Serial.println(F("turning OFF hum"));
             humOn = false;
+            humOffTime = millis();
         }
     }
 #if ECHO_TO_SERIAL
