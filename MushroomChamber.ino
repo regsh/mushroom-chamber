@@ -90,7 +90,7 @@ uint8_t rhCurrent;
 
 uint8_t tempData[20];
 uint8_t tempShortAvg;
-uint8_t tempCurrent;
+float tempCurrent;
 
 int co2Data[20];
 int co2ShortAvg;
@@ -119,7 +119,7 @@ void displayState(int state) { //change back to switch case?
         lcd.print(("ppm"));
         lcd.setCursor(0, 1);
         lcd.print(F("Temp:"));
-        lcd.print(convertCtoF(tempCurrent));
+        lcd.print((int)convertCtoF(tempCurrent));
         lcd.print(F("F"));
         lcd.print(F(" RH:"));
         lcd.print(rhCurrent);
@@ -170,11 +170,11 @@ void addData(uint8_t rh, uint8_t temp, int co2) {
     getAvgs();
 }
 
-uint8_t convertCtoF(uint8_t tempC){
-   int product = tempC * 9;
+float convertCtoF(float tempC){
+   float product = tempC * 9;
    product = product/5;
    product += 32;
-   return (uint8_t)product;
+   return product;
 }
 
 void getAvgs() {
@@ -324,7 +324,7 @@ void setup(void)
   logfile.println(F("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 
 #if ECHO_TO_SERIAL
-  Serial.println(F("Time, Co2, Temp(C), Temp(F), RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
+  Serial.println(F("Time, Co2Current, Co2Avg, TempCurrent(C), TempCurrent(F), TempAvg(C), RHCurrent, RHAvg, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem, CurIdx"));
 #endif //ECHO_TO_SERIAL
 
   //LCD SET-UP
@@ -340,6 +340,7 @@ void setup(void)
   }
   else {
     Wire.setWireTimeout(3000, true); //sensor can stretch clock up to 150ms
+    //airSensor.setMeasurementInterval(5);
     //https://www.fpaynter.com/tag/i2c-freeze/
     while (!airSensor.dataAvailable()) {
     }
@@ -461,12 +462,18 @@ void loop(void)
     Serial.print(now.second(), DEC);
     Serial.print('"');
     Serial.print(", ");
+    Serial.print(co2Current);
+    Serial.print(", ");
     Serial.print(co2ShortAvg);
     Serial.print(", ");
+    Serial.print((tempCurrent));
+    Serial.print(", ");    
+    Serial.print(convertCtoF(tempCurrent));
+    Serial.print(", ");    
     Serial.print((tempShortAvg));
     Serial.print(", ");
-    Serial.print(convertCtoF(tempShortAvg));
-    Serial.print(", ");
+    Serial.print(rhCurrent);
+    Serial.print(", ");    
     Serial.print(rhShortAvg);
     Serial.print(", ");
     Serial.print(fanOn);
@@ -480,6 +487,8 @@ void loop(void)
     Serial.print(rhMax);
     Serial.print(", ");
     Serial.print(freeMemory());
+        Serial.print(", ");
+    Serial.print(currentIdx);
     Serial.println();
 #endif //ECHO_TO_SERIAL
     lastReading = millis();
@@ -518,7 +527,7 @@ void loop(void)
     // log sensor data
     logfile.print(co2Avg);
     logfile.print(", ");
-    logfile.print(convertCtoF(tempAvg));
+    logfile.print((tempAvg));
     logfile.print(", ");
     logfile.print(rhAvg);
     logfile.print(", ");
