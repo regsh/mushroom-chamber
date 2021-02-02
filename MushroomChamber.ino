@@ -427,9 +427,9 @@ void loop(void)
         }
         //add 10 sec delay after humidifier goes off
         else if (fanOn == true && 
-          co2ShortAvg < 1000 && 
+          co2ShortAvg < 600 && 
           humOn == false &&
-          millis() - humOffTime >= 10000) 
+          millis() - humOffTime >= 10000) //10 sec lag between fan turning off and humidifier 
          {
               //Serial.println(F("turning off fan"));
               fanOn = false;
