@@ -16,7 +16,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="MushroomChamber.ino" />
-    <None Include="ProjectLinks.ino" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="__vm\.MushroomChamber.vsarduino.h">

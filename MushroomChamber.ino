@@ -85,12 +85,15 @@ uint8_t state = MAIN;
 
 uint8_t rhData[20];
 uint8_t rhShortAvg; //average value over the last 4 readings
+uint8_t rhCurrent;
 
 uint8_t tempData[20];
 uint8_t tempShortAvg;
+uint8_t tempCurrent;
 
 int co2Data[20];
 int co2ShortAvg;
+int co2Current;
 
 uint8_t currentIdx = 0;
 
@@ -346,6 +349,11 @@ void setup(void)
 
 void loop(void)
 {
+  if(humOn){digitalWrite(HUM_RELAY, LOW);}
+  else {digitalWrite(HUM_RELAY, HIGH);}
+  if(fanOn){digitalWrite(FAN_RELAY,LOW);}
+  else{digitalWrite(FAN_RELAY,HIGH);
+  
   //The SCD30 has data ready every two seconds, can reconfigure for more/less frequent data collection
   if (Serial.available() > 0) {
     logfile.close();
@@ -394,8 +402,11 @@ void loop(void)
     if (airSensor.dataAvailable()) {
       //green LED indicates data is being collected
       digitalWrite(greenLEDpin, HIGH);
+      rhCurrent = airSensor.getHumidity();
+      tempCurrent = airSensor.getTemperature();
+      co2Current = airSensor.getCO2();
       //gets current sensor data
-      addData(airSensor.getHumidity(), airSensor.getTemperature(), airSensor.getCO2());
+      addData(rhCurrent, tempCurrent, co2Current);
       displayState(state);
     }
 
@@ -408,25 +419,28 @@ void loop(void)
     if (!pause) {
         if (fanOn == false && 
           (co2ShortAvg > (co2Max * 100) || 
-          rhShortAvg < rhMin || 
-          tempShortAvg > tempMax || 
-          tempShortAvg < tempMin)) {
+          rhShortAvg < rhMin /*|| tempShortAvg > tempMax || tempShortAvg < tempMin */
+          )) {
+            Serial.println(F("turning on fan"));
             fanOn = true;
-            digitalWrite(FAN_RELAY, LOW);
         }
-        if (fanOn == true && 
-        co2ShortAvg < 500 && 
-        rhShortAvg >= rhMax) {
-            fanOn = false;
-            digitalWrite(FAN_RELAY, HIGH);
+        //add 10 sec delay after humidifier goes off
+        else if (fanOn == true && 
+          co2ShortAvg < 500 && 
+          rhShortAvg >= rhMax) 
+         {
+              Serial.println(F("turning off fan"));
+              fanOn = false;
         }
-        if (humOn == false && rhShortAvg < rhMin) {
+        if (humOn == false && 
+          rhShortAvg < rhMin) {
+            Serial.println(F("turning ON hum"));
             humOn = true;
-            digitalWrite(HUM_RELAY, LOW);
         }
-        if (humOn == true && rhShortAvg >= rhMax) {
+        else if (humOn == true && 
+          rhShortAvg >= rhMax) {
+            Serial.println(F("turning OFF hum"));
             humOn = false;
-            digitalWrite(HUM_RELAY, HIGH);
         }
     }
 #if ECHO_TO_SERIAL
@@ -542,9 +556,7 @@ void loop(void)
       }
       else if (state == SET_TEMP_MAX) {
         tempMax += 1;
-      }
-
-      
+      }      
       displayState(state);
     }
     if (buttons & BUTTON_DOWN) {
