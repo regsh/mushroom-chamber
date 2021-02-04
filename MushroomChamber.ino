@@ -179,18 +179,22 @@ float convertCtoF(float tempC){
 
 void getAvgs() {
     int sum = 0;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 1; i < 5; i++) {
+        //Serial.print((currentIdx + 20 - i) % 20);
+        //Serial.print(": ");
+        uint8_t d = rhData[(currentIdx + 20 - i) %20];
+        //Serial.println(d);
         sum += rhData[(currentIdx + 20 - i) % 20];
     }
     rhShortAvg = sum / 4;
 
     sum = 0;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 1; i < 5; i++) {
         sum += tempData[(currentIdx + 20 - i) % 20];
     }
     tempShortAvg = sum / 4;
     sum = 0;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 1; i < 5; i++) {
         uint8_t idx = (currentIdx + 20 - i) % 20;
         sum += co2Data[idx];
     }
@@ -212,6 +216,7 @@ void initializeQueues(uint8_t rh, uint8_t temp, int co2) {
 }
 
 void pauseRelay() {
+  /*
     digitalWrite(FAN_RELAY, HIGH);
     digitalWrite(HUM_RELAY, HIGH);
     digitalWrite(RELAY_4, HIGH);
@@ -219,6 +224,7 @@ void pauseRelay() {
     humOn = false;
     state = PAUSED;
     displayState(state);
+    */
 }
 
 void printRoot() {
@@ -243,7 +249,7 @@ void printRoot() {
 
 void setup(void)
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   digitalWrite(SDA,1);
   digitalWrite(SCL,1);
 
@@ -253,6 +259,8 @@ void setup(void)
   //Signal for toggling relays
   pinMode(FAN_RELAY, OUTPUT);
   pinMode(HUM_RELAY, OUTPUT);
+  digitalWrite(FAN_RELAY,HIGH);
+  digitalWrite(HUM_RELAY,HIGH);
 
   co2Max = EEPROM.read(CO2_MEM_LOC);
   rhMin = EEPROM.read(RH_MIN_MEM_LOC);
@@ -321,10 +329,10 @@ void setup(void)
   rtc.start();
   //NOTE: RTC can be offset to adjust for temperature, age etc. See documentation and example
   //PCF8523 sketches for doing so
-  logfile.println(F("Time, Co2, Temp, RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
+  logfile.println(F("Time, Co2, Temp(C),Temp(F), RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 
 #if ECHO_TO_SERIAL
-  Serial.println(F("Time, Co2Current, Co2Avg, TempCurrent(C), TempCurrent(F), TempAvg(C), RHCurrent, RHAvg, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem, CurIdx"));
+  Serial.println(F("Time, Co2MinAvg, TempCurrent(C), TempCurrent(F), TempMinAvg(F), RHMinAvg, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 #endif //ECHO_TO_SERIAL
 
   //LCD SET-UP
@@ -351,10 +359,12 @@ void setup(void)
 
 void loop(void)
 {
+  /*
   if(humOn){digitalWrite(HUM_RELAY, LOW);}
   else {digitalWrite(HUM_RELAY, HIGH);}
   if(fanOn){digitalWrite(FAN_RELAY,LOW);}
   else{digitalWrite(FAN_RELAY,HIGH);}
+  */
   
   //The SCD30 has data ready every two seconds, can reconfigure for more/less frequent data collection
   if (Serial.available() > 0) {
@@ -419,12 +429,14 @@ void loop(void)
         displayState(state);
     }
     if (!pause) {
+        //Serial.println(F("checking relays"));
         if (fanOn == false && 
           (co2ShortAvg > (co2Max * 100) || 
           rhShortAvg < rhMin /*|| tempShortAvg > tempMax || tempShortAvg < tempMin */
           )) {
             //Serial.println(F("turning on fan"));
             fanOn = true;
+            digitalWrite(FAN_RELAY,LOW);
         }
         //add 10 sec delay after humidifier goes off
         else if (fanOn == true && 
@@ -434,16 +446,19 @@ void loop(void)
          {
               //Serial.println(F("turning off fan"));
               fanOn = false;
+              digitalWrite(FAN_RELAY,LOW);
         }
         if (humOn == false && 
           rhShortAvg < rhMin) {
             //Serial.println(F("turning ON hum"));
             humOn = true;
+            digitalWrite(HUM_RELAY,LOW);
         }
         else if (humOn == true && 
           rhShortAvg >= rhMax) {
             //Serial.println(F("turning OFF hum"));
             humOn = false;
+            digitalWrite(HUM_RELAY,HIGH);
             humOffTime = millis();
         }
     }
@@ -462,18 +477,14 @@ void loop(void)
     Serial.print(now.second(), DEC);
     Serial.print('"');
     Serial.print(", ");
-    Serial.print(co2Current);
-    Serial.print(", ");
     Serial.print(co2ShortAvg);
     Serial.print(", ");
     Serial.print((tempCurrent));
     Serial.print(", ");    
     Serial.print(convertCtoF(tempCurrent));
     Serial.print(", ");    
-    Serial.print((tempShortAvg));
-    Serial.print(", ");
-    Serial.print(rhCurrent);
-    Serial.print(", ");    
+    Serial.print(convertCtoF(tempShortAvg));
+    Serial.print(", ");   
     Serial.print(rhShortAvg);
     Serial.print(", ");
     Serial.print(fanOn);
@@ -487,8 +498,6 @@ void loop(void)
     Serial.print(rhMax);
     Serial.print(", ");
     Serial.print(freeMemory());
-        Serial.print(", ");
-    Serial.print(currentIdx);
     Serial.println();
 #endif //ECHO_TO_SERIAL
     lastReading = millis();
@@ -528,6 +537,8 @@ void loop(void)
     logfile.print(co2Avg);
     logfile.print(", ");
     logfile.print((tempAvg));
+    logfile.print(", ");
+    logfile.print(convertCtoF(tempAvg));
     logfile.print(", ");
     logfile.print(rhAvg);
     logfile.print(", ");
