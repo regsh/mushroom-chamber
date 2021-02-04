@@ -216,7 +216,7 @@ void initializeQueues(uint8_t rh, uint8_t temp, int co2) {
 }
 
 void pauseRelay() {
-  /*
+  
     digitalWrite(FAN_RELAY, HIGH);
     digitalWrite(HUM_RELAY, HIGH);
     digitalWrite(RELAY_4, HIGH);
@@ -224,7 +224,7 @@ void pauseRelay() {
     humOn = false;
     state = PAUSED;
     displayState(state);
-    */
+    
 }
 
 void printRoot() {
@@ -446,7 +446,7 @@ void loop(void)
          {
               //Serial.println(F("turning off fan"));
               fanOn = false;
-              digitalWrite(FAN_RELAY,LOW);
+              digitalWrite(FAN_RELAY,HIGH);
         }
         if (humOn == false && 
           rhShortAvg < rhMin) {
@@ -483,7 +483,7 @@ void loop(void)
     Serial.print(", ");    
     Serial.print(convertCtoF(tempCurrent));
     Serial.print(", ");    
-    Serial.print(convertCtoF(tempShortAvg));
+    Serial.print((int)convertCtoF(tempShortAvg));
     Serial.print(", ");   
     Serial.print(rhShortAvg);
     Serial.print(", ");
