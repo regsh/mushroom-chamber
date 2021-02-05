@@ -332,7 +332,7 @@ void setup(void)
   logfile.println(F("Time, Co2, Temp(C),Temp(F), RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 
 #if ECHO_TO_SERIAL
-  Serial.println(F("Time, Co2MinAvg, TempCurrent(C), TempCurrent(F), TempMinAvg(F), RHMinAvg, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
+  Serial.println(F("Time, Co2MinAvg, TempCurrent(C), TempCurrent(F), TempMinAvg(F), RHCurrent, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 #endif //ECHO_TO_SERIAL
 
   //LCD SET-UP
@@ -431,8 +431,8 @@ void loop(void)
     if (!pause) {
         //Serial.println(F("checking relays"));
         if (fanOn == false && 
-          (co2ShortAvg > (co2Max * 100) || 
-          rhShortAvg < rhMin /*|| tempShortAvg > tempMax || tempShortAvg < tempMin */
+          (co2Current > (co2Max * 100) || 
+          rhCurrent < rhMin /*|| tempShortAvg > tempMax || tempShortAvg < tempMin */
           )) {
             //Serial.println(F("turning on fan"));
             fanOn = true;
@@ -440,7 +440,7 @@ void loop(void)
         }
         //add 10 sec delay after humidifier goes off
         else if (fanOn == true && 
-          co2ShortAvg < 600 && 
+          co2Current < 600 && 
           humOn == false &&
           millis() - humOffTime >= 10000) //10 sec lag between fan turning off and humidifier 
          {
@@ -449,13 +449,13 @@ void loop(void)
               digitalWrite(FAN_RELAY,HIGH);
         }
         if (humOn == false && 
-          rhShortAvg < rhMin) {
+          rhCurrent < rhMin) {
             //Serial.println(F("turning ON hum"));
             humOn = true;
             digitalWrite(HUM_RELAY,LOW);
         }
         else if (humOn == true && 
-          rhShortAvg >= rhMax) {
+          rhCurrent >= rhMax) {
             //Serial.println(F("turning OFF hum"));
             humOn = false;
             digitalWrite(HUM_RELAY,HIGH);
@@ -485,7 +485,7 @@ void loop(void)
     Serial.print(", ");    
     Serial.print((int)convertCtoF(tempShortAvg));
     Serial.print(", ");   
-    Serial.print(rhShortAvg);
+    Serial.print(rhCurrent);
     Serial.print(", ");
     Serial.print(fanOn);
     Serial.print(", ");
