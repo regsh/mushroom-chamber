@@ -1,5 +1,3 @@
-
-
 //Controller for environmental chamber built for cultivationg mushrooms
 //Reads CO2, temp, humidity data and modulates power to outlet for humidifier/fans accordingly
 //Logs conditions at time intervals specified
@@ -569,10 +567,10 @@ void loop(void)
         co2Max = co2Max + 1;
       }
       else if (state == SET_RH_MIN) {
-        if (rhMin < 95 && rhMax > rhMin + 10) rhMin = rhMin + 5;
+        if (rhMin < 95 && rhMax > rhMin + 5) rhMin = rhMin + 1;
       }
       else if (state == SET_RH_MAX) {
-        if (rhMax < 100)rhMax = rhMax + 5;
+        if (rhMax < 100)rhMax = rhMax + 1;
       }
       else if (state == SET_TEMP_MIN) {
         if (tempMin < tempMax - 5) tempMin = tempMin + 1;
@@ -587,10 +585,10 @@ void loop(void)
         co2Max = co2Max - 1;
       }
       if (state == SET_RH_MIN && rhMin > 0) {
-        rhMin = rhMin - 5;
+        rhMin = rhMin - 1;
       }
       if (state == SET_RH_MAX && rhMax > rhMin + 5) {
-        rhMax = rhMax - 5;
+        rhMax = rhMax - 1;
       }
       if (state == SET_TEMP_MIN && rhMin > 0) {
         tempMin -= 1;
