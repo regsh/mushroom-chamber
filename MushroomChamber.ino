@@ -28,7 +28,6 @@
 
 //Digital pins connected to data logger LEDs
 #define redLEDpin 5
-#define greenLEDpin 6
 
 // color definitions for setting the backlight
 #define OFF 0x0
@@ -96,155 +95,6 @@ int co2Current;
 
 uint8_t currentIdx = 0;
 
-//Function for printing error information for debugging
-//Turns on Red LED and stops program
-void error(const char *str)
-{
-  Serial.print(F("error: "));
-  Serial.println(str);
-  // red LED indicates error
-  digitalWrite(redLEDpin, HIGH);
-  while (1);
-}
-//Function for displaying the appropriate info on screen of LCD
-//based on current state of program
-void displayState(int state) { //change back to switch case?
-    switch (state) {
-    case MAIN:
-        lcd.clear();
-        lcd.print(("CO2: "));
-        lcd.print(co2Current);
-        lcd.print(("ppm"));
-        lcd.setCursor(0, 1);
-        lcd.print(F("Temp:"));
-        lcd.print((int)convertCtoF(tempCurrent));
-        lcd.print(F("F"));
-        lcd.print(F(" RH:"));
-        lcd.print(rhCurrent);
-        lcd.print("%");
-        break;
-    case SET_CO2_MAX:
-        lcd.clear();
-        lcd.print(F("CO2 MAX:"));
-        lcd.setCursor(0, 1);
-        lcd.print(co2Max * 100);
-        break;
-    case SET_RH_MIN:
-        lcd.clear();
-        lcd.print(F("RH MIN:"));
-        lcd.setCursor(0, 1);
-        lcd.print(rhMin);
-        break;
-    case SET_RH_MAX:
-        lcd.clear();
-        lcd.print(F("RH MAX:"));
-        lcd.setCursor(0, 1);
-        lcd.print(rhMax);
-        break;
-    case SET_TEMP_MIN:
-        lcd.clear();
-        lcd.print(F("TEMP MIN:"));
-        lcd.setCursor(0, 1);
-        lcd.print(convertCtoF(tempMin));
-        break;
-    case SET_TEMP_MAX:
-        lcd.clear();
-        lcd.print(F("TEMP MAX:"));
-        lcd.setCursor(0, 1);
-        lcd.print(convertCtoF(tempMax));
-        break;
-    case PAUSED:
-        lcd.clear();
-        lcd.print(F("PAUSED"));
-        break;
-    }  
-}
-
-void addData(uint8_t rh, uint8_t temp, int co2) {
-    rhData[currentIdx] = rh;
-    tempData[currentIdx] = temp;
-    co2Data[currentIdx] = co2;
-    currentIdx = (currentIdx + 1) % 20;
-    getAvgs();
-}
-
-float convertCtoF(float tempC){
-   float product = tempC * 9;
-   product = product/5;
-   product += 32;
-   return product;
-}
-
-void getAvgs() {
-    int sum = 0;
-    for (int i = 1; i < 5; i++) {
-        //Serial.print((currentIdx + 20 - i) % 20);
-        //Serial.print(": ");
-        uint8_t d = rhData[(currentIdx + 20 - i) %20];
-        //Serial.println(d);
-        sum += rhData[(currentIdx + 20 - i) % 20];
-    }
-    rhShortAvg = sum / 4;
-
-    sum = 0;
-    for (int i = 1; i < 5; i++) {
-        sum += tempData[(currentIdx + 20 - i) % 20];
-    }
-    tempShortAvg = sum / 4;
-    sum = 0;
-    for (int i = 1; i < 5; i++) {
-        uint8_t idx = (currentIdx + 20 - i) % 20;
-        sum += co2Data[idx];
-    }
-    co2ShortAvg = sum / 4;
-}
-
-//initializes co2 and rh data queues with values specified
-//could use expected environmental values or initial readings from sensor
-void initializeQueues(uint8_t rh, uint8_t temp, int co2) {
-  for (int i = 0; i < 20; i++) {
-        rhData[i] = rh;
-        tempData[i] = temp;
-        co2Data[i] = co2;
-
-        rhShortAvg = rh;
-        tempShortAvg = temp;
-        co2ShortAvg = co2;
-  }
-}
-
-void pauseRelay() {
-  
-    digitalWrite(FAN_RELAY, HIGH);
-    digitalWrite(HUM_RELAY, HIGH);
-    digitalWrite(RELAY_4, HIGH);
-    fanOn = false;
-    humOn = false;
-    state = PAUSED;
-    displayState(state);
-    
-}
-
-void printRoot() {
-  File root = SD.open("/");
-  if (root) {
-    root.rewindDirectory();
-    while (true) {
-      File entry =  root.openNextFile();
-      if (! entry) {
-        Serial.println(F("EOF"));
-        // no more files
-        break;
-      }
-      Serial.print(entry.name());
-      Serial.print(F("\t\t"));
-      Serial.println(entry.size(), DEC);//need to check if directory first
-      entry.close();
-    }
-  }
-  root.close();
-}
-
 void setup(void)
 {
   Serial.begin(115200);
@@ -253,7 +103,6 @@ void setup(void)
 
   // Debugging LEDs for data logger
   pinMode(redLEDpin, OUTPUT);
-  pinMode(greenLEDpin, OUTPUT);
   //Signal for toggling relays
   pinMode(FAN_RELAY, OUTPUT);
   pinMode(HUM_RELAY, OUTPUT);
@@ -304,31 +153,15 @@ void setup(void)
     Serial.println("RTC is NOT initialized, let's set the time!");
     //Sets RTC to time program was compiled if new device or power lost
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-    //
-    // Note: allow 2 seconds after inserting battery or applying external power
-    // without battery before calling adjust(). This gives the PCF8523's
-    // crystal oscillator time to stabilize. If you call adjust() very quickly
-    // after the RTC is powered, lostPower() may still return true.
   }
-
   // When time needs to be re-set on a previously configured device, the
   // following line sets the RTC to the date & time this sketch was compiled
   //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  // This line sets the RTC with an explicit date & time, for example to set
-  // January 21, 2014 at 3am you would call:
-  // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-
-  // When the RTC was stopped and stays connected to the battery, it has
-  // to be restarted by clearing the STOP bit. Let's do this to ensure
-  // the RTC is running.
   rtc.start();
   //NOTE: RTC can be offset to adjust for temperature, age etc. See documentation and example
   //PCF8523 sketches for doing so
+  
   logfile.println(F("Time, Co2, Temp(C),Temp(F), RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
-
 #if ECHO_TO_SERIAL
   Serial.println(F("Time, Co2MinAvg, TempCurrent(C), TempCurrent(F), TempMinAvg(F), RHCurrent, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 #endif //ECHO_TO_SERIAL
@@ -350,310 +183,41 @@ void setup(void)
     //https://www.fpaynter.com/tag/i2c-freeze/
     while (!airSensor.dataAvailable()) {
     }
-    initializeQueues(airSensor.getHumidity(),airSensor.getTemperature(), airSensor.getCO2()); //should confirm that this works with the returned data types
+    rhCurrent = (uint8_t)airSensor.getHumidity();
+    tempCurrent = airSensor.getTemperature();
+    co2Current = airSensor.getCO2();
+    initializeQueues(rhCurrent,tempCurrent,co2Current);
     displayState(state);
   }
 }
-
 void loop(void)
 {
-  /*
-  if(humOn){digitalWrite(HUM_RELAY, LOW);}
-  else {digitalWrite(HUM_RELAY, HIGH);}
-  if(fanOn){digitalWrite(FAN_RELAY,LOW);}
-  else{digitalWrite(FAN_RELAY,HIGH);}
-  */
+  //checks for input from serial monitor and provides appropriate data to user
+  checkSerial();
   
-  //The SCD30 has data ready every two seconds, can reconfigure for more/less frequent data collection
-  if (Serial.available() > 0) {
-    logfile.close();
-    char c = Serial.read();
-    Serial.println(c);
-    int numData = 0;
-    char fn[13] = "LOGGER00.CSV";
-    String input;
-    while (Serial.available()) Serial.readString();
-    switch (c) {
-      //prints directory from SD card on Serial monitor
-      case 'r':
-        printRoot();
-        if (Serial.available()) Serial.read();
-        break;
-      //initiates file open function. file number must follow
-      case 'o':
-        if (Serial.available() > 0) Serial.readString();
-        while (Serial.available() == 0) {}
-        input = Serial.readString();
-        fn[6] = input[0];
-        fn[7] = input[1];
-        Serial.println(fn);
-        File dataFile = SD.open(fn);
-        // if the file is available, write contents to Serial monitor
-        if (dataFile) {
-          while (dataFile.available()) {
-            Serial.write(dataFile.read());
-          }
-          Serial.println(F("EOF"));
-          dataFile.close();
-        }
-        // if the file isn't open, pop up an error:
-        else {
-          Serial.println(F("error opening file"));
-        }
-        break;
-    }
-    logfile = SD.open(filename, FILE_WRITE);
-  }
-
-  //Checks to see if LOG_INTERVAL has passed since last reading and logs data if so
+  //Checks to see if DATA_INTERVAL has passed since last reading and adds sensor data if so
   if (millis() - lastReading >= DATA_INTERVAL) {
-    // fetch the time
-    now = rtc.now();
-    if (airSensor.dataAvailable()) {
-      //green LED indicates data is being collected
-      digitalWrite(greenLEDpin, HIGH);
-      rhCurrent = airSensor.getHumidity();
-      tempCurrent = airSensor.getTemperature();
-      co2Current = airSensor.getCO2();
-      //gets current sensor data
-      addData(rhCurrent, tempCurrent, co2Current);
-      displayState(state);
-    }
-
-    //LOGIC FOR RELAY
+    getData();
+    
     if (pause && (millis() - pauseStart >= PAUSE_INTERVAL)) {
         pause = false;
         state = MAIN;
         displayState(state);
     }
     if (!pause) {
-        //Serial.println(F("checking relays"));
-        if (fanOn == false && 
-          (co2Current > (co2Max * 100) || 
-          rhCurrent < rhMin /*|| tempShortAvg > tempMax || tempShortAvg < tempMin */
-          )) {
-            //Serial.println(F("turning on fan"));
-            fanOn = true;
-            digitalWrite(FAN_RELAY,LOW);
-        }
-        //add 10 sec delay after humidifier goes off
-        else if (fanOn == true && 
-          co2Current < 600 && 
-          humOn == false &&
-          millis() - humOffTime >= 10000) //10 sec lag between fan turning off and humidifier 
-         {
-              //Serial.println(F("turning off fan"));
-              fanOn = false;
-              digitalWrite(FAN_RELAY,HIGH);
-        }
-        if (humOn == false && 
-          rhCurrent < rhMin) {
-            //Serial.println(F("turning ON hum"));
-            humOn = true;
-            digitalWrite(HUM_RELAY,LOW);
-        }
-        else if (humOn == true && 
-          rhCurrent >= rhMax) {
-            //Serial.println(F("turning OFF hum"));
-            humOn = false;
-            digitalWrite(HUM_RELAY,HIGH);
-            humOffTime = millis();
-        }
+        toggleRelays();
     }
-#if ECHO_TO_SERIAL
-    Serial.print('"');
-    Serial.print(now.year(), DEC);
-    Serial.print("/");
-    Serial.print(now.month(), DEC);
-    Serial.print("/");
-    Serial.print(now.day(), DEC);
-    Serial.print(" ");
-    Serial.print(now.hour(), DEC);
-    Serial.print(":");
-    Serial.print(now.minute(), DEC);
-    Serial.print(":");
-    Serial.print(now.second(), DEC);
-    Serial.print('"');
-    Serial.print(", ");
-    Serial.print(co2ShortAvg);
-    Serial.print(", ");
-    Serial.print((tempCurrent));
-    Serial.print(", ");    
-    Serial.print(convertCtoF(tempCurrent));
-    Serial.print(", ");    
-    Serial.print((int)convertCtoF(tempShortAvg));
-    Serial.print(", ");   
-    Serial.print(rhCurrent);
-    Serial.print(", ");
-    Serial.print(fanOn);
-    Serial.print(", ");
-    Serial.print(humOn);
-    Serial.print(", ");
-    Serial.print(co2Max * 100);
-    Serial.print(", ");
-    Serial.print(rhMin);
-    Serial.print(", ");
-    Serial.print(rhMax);
-    Serial.print(", ");
-    Serial.print(freeMemory());
-    Serial.println();
-#endif //ECHO_TO_SERIAL
     lastReading = millis();
   }
+  
+  //logs data after specified interval
   if (millis() - lastLogging >= LOG_INTERVAL) {
-    //TODO: reset state and backlight
-    lastLogging = millis();
-    long co2Avg = 0;
-    unsigned int tempAvg = 0;
-    unsigned int rhAvg = 0;
-    for(uint8_t i = 0; i < 20; i ++){
-      co2Avg += co2Data[i];
-      tempAvg += tempData[i];
-      rhAvg += rhData[i];
-    }
-    co2Avg = co2Avg/20;
-    tempAvg = tempAvg/20;
-    rhAvg = rhAvg/20;
-    
-    // log time
-    logfile.print('"');
-    logfile.print(now.year(), DEC);
-    logfile.print("/");
-    logfile.print(now.month(), DEC);
-    logfile.print("/");
-    logfile.print(now.day(), DEC);
-    logfile.print(" ");
-    logfile.print(now.hour(), DEC);
-    logfile.print(":");
-    logfile.print(now.minute(), DEC);
-    logfile.print(":");
-    logfile.print(now.second(), DEC);
-    logfile.print('"');
-    logfile.print(", ");
-
-    // log sensor data
-    logfile.print(co2Avg);
-    logfile.print(", ");
-    logfile.print((tempAvg));
-    logfile.print(", ");
-    logfile.print(convertCtoF(tempAvg));
-    logfile.print(", ");
-    logfile.print(rhAvg);
-    logfile.print(", ");
-    logfile.print(fanOn);
-    logfile.print(", ");
-    logfile.print(humOn);
-    logfile.print(", ");
-    logfile.print(co2Max * 100);
-    logfile.print(", ");
-    logfile.print(rhMin);
-    logfile.print(", ");
-    logfile.print(rhMax);
-    logfile.print(", ");
-    logfile.print(freeMemory());
-    logfile.println();
-
-    //Green LED off when data collection is complete
-    digitalWrite(greenLEDpin, LOW);
-
+    logData();    
   }
-  //Checks for input on LCD buttons
-  uint8_t buttons = lcd.readButtons();
- 
-  //add error handling for if min is greater than max, less than 0, etc.
-  if (buttons) {
-    if (buttons & BUTTON_UP) {
-      if (state == SET_CO2_MAX && co2Max < 100) {
-        co2Max = co2Max + 1;
-      }
-      else if (state == SET_RH_MIN) {
-        if (rhMin < 95 && rhMax > rhMin + 5) rhMin = rhMin + 1;
-      }
-      else if (state == SET_RH_MAX) {
-        if (rhMax < 100)rhMax = rhMax + 1;
-      }
-      else if (state == SET_TEMP_MIN) {
-        if (tempMin < tempMax - 5) tempMin = tempMin + 1;
-      }
-      else if (state == SET_TEMP_MAX) {
-        tempMax += 1;
-      }      
-      displayState(state);
-    }
-    if (buttons & BUTTON_DOWN) {
-      if (state == SET_CO2_MAX && co2Max > 4) {
-        co2Max = co2Max - 1;
-      }
-      if (state == SET_RH_MIN && rhMin > 0) {
-        rhMin = rhMin - 1;
-      }
-      if (state == SET_RH_MAX && rhMax > rhMin + 5) {
-        rhMax = rhMax - 1;
-      }
-      if (state == SET_TEMP_MIN && rhMin > 0) {
-        tempMin -= 1;
-      }
-      if (state == SET_TEMP_MAX && tempMax > rhMin + 5) {
-        rhMax = rhMax - 1;
-      }
-      displayState(state);
-    }
-    //toggles the backlight
-    if (buttons & BUTTON_LEFT) {
-      if (backlightOn == false) {
-        lcd.setBacklight(VIOLET);
-        backlightOn = true;
-      }
-      else {
-        lcd.setBacklight(OFF);
-        backlightOn = false;
-      }
-    }
-    if (buttons & BUTTON_RIGHT) {
-      if (state == MAIN) {
-        state = SET_CO2_MAX;
-      }
-      else if (state == SET_CO2_MAX) {
-        EEPROM.update(CO2_MEM_LOC, co2Max);
-        state = SET_RH_MIN;
-      }
-      else if (state == SET_RH_MIN) {
-        EEPROM.update(RH_MIN_MEM_LOC, rhMin);
-        state = SET_RH_MAX;
-      }
-      else if (state == SET_RH_MAX) {
-        EEPROM.update(RH_MAX_MEM_LOC, rhMax);
-        state = SET_TEMP_MIN;
-      }
-      else if (state == SET_TEMP_MIN) {
-        EEPROM.update(TEMP_MIN_MEM_LOC, tempMin);
-        state = SET_TEMP_MAX;
-      }
-      else if (state == SET_TEMP_MAX) {
-        EEPROM.update(TEMP_MAX_MEM_LOC, tempMax);
-        state = MAIN;
-      }
-      displayState(state);
-    }
-    if (buttons & BUTTON_SELECT) {
-        if (!pause) {
-            pauseRelay();
-            pause = true;
-            pauseStart = millis();
-        }
-        else {
-            pause = false;
-            state = MAIN;
-            displayState(state);
-        }        
-      //pause relay behavior for 5 minutes or until SELECT button is pressed
-    }
-    delay(200);
-  }
-  digitalWrite(greenLEDpin, LOW);
-
-  // Now we write data to disk! Don't sync too often - requires 2048 bytes of I/O to SD card
-  // which uses a bunch of power and takes time
+  
+  //checks for user input on LCD buttons and changes set points
+  checkButtons();
+  
   if ((millis() - syncTime) < SYNC_INTERVAL) return;
   syncTime = millis();
 
@@ -661,7 +225,7 @@ void loop(void)
   digitalWrite(redLEDpin, HIGH);
   logfile.flush();
   digitalWrite(redLEDpin, LOW);
+  //resets the state to home screen
   state = MAIN;
   displayState(state);
-
 }
