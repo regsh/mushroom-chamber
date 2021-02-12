@@ -504,8 +504,8 @@ void loop(void)
     //TODO: reset state and backlight
     lastLogging = millis();
     long co2Avg = 0;
-    unsigned int tempAvg = 0;
-    unsigned int rhAvg = 0;
+    float tempAvg = 0;
+    float rhAvg = 0;
     for(uint8_t i = 0; i < 20; i ++){
       co2Avg += co2Data[i];
       tempAvg += tempData[i];
