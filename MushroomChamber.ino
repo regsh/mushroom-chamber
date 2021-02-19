@@ -12,6 +12,7 @@
 #include <Adafruit_RGBLCDShield.h> //LCD shield
 #include <SparkFun_SCD30_Arduino_Library.h> //for CO2/temp/RH sensor (Sensiron SCD30)
 #include <EEPROM.h> //for persistent data storage of set points
+#include <SoftwareSerial.h>
 
 // how many milliseconds between retrieving data and logging it (ms).
 #define DATA_INTERVAL 15000 //mills between collection of data points
@@ -49,6 +50,21 @@
 #define TEMP_MAX_MEM_LOC 2
 #define RH_MIN_MEM_LOC 3
 #define RH_MAX_MEM_LOC 4
+
+#define RX 10
+#define TX 11
+
+String AP = "KSU Guest"; 
+String PASS = ""; 
+String API = "";   
+String HOST = "api.thingspeak.com";
+String PORT = "80";
+//String field = "4";
+int countTrueCommand;
+int countTimeCommand; 
+boolean found = false; 
+int valSensor = 1;
+SoftwareSerial esp8266(RX,TX); 
 
 // The LCD shield connected to UNO using I2C bus (A4 and A5)
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
@@ -214,15 +230,13 @@ void initializeQueues(uint8_t rh, uint8_t temp, int co2) {
 }
 
 void pauseRelay() {
-  
     digitalWrite(FAN_RELAY, HIGH);
     digitalWrite(HUM_RELAY, HIGH);
     digitalWrite(RELAY_4, HIGH);
     fanOn = false;
     humOn = false;
     state = PAUSED;
-    displayState(state);
-    
+    displayState(state);  
 }
 
 void printRoot() {
@@ -245,9 +259,64 @@ void printRoot() {
   root.close();
 }
 
+void sendCommand(String command, int maxTime, char readReplay[]) {
+  Serial.print(countTrueCommand);
+  Serial.print(". at command => ");
+  Serial.print(command);
+  Serial.print(" ");
+  while(countTimeCommand < (maxTime*1))
+  {
+    esp8266.println(command);//at+cipsend
+    if(esp8266.find(readReplay))//ok
+    {
+      found = true;
+      break;
+    } 
+    countTimeCommand++;
+  }
+  
+  if(found == true)
+  {
+    Serial.println("OYI");
+    countTrueCommand++;
+    countTimeCommand = 0;
+  }
+  
+  if(found == false)
+  {
+    Serial.println("Fail");
+    countTrueCommand = 0;
+    countTimeCommand = 0;
+  }
+  
+  found = false;
+ }
+
+void sendData(float temp, int rh, int co2) {
+ 
+ sendCommand("AT+CIPMUX=1",5,"OK");
+ sendCommand("AT+CIPSTART=0,\"TCP\",\""+ HOST +"\","+ PORT,15,"OK");
+ String getData = "GET /update?api_key="+ API +"temp="+String(temp);
+ sendCommand("AT+CIPSEND=0," +String(getData.length()+4),4,">");
+ esp8266.println(getData);
+ getData = ("GET /update?api_key="+ API +"rh="+String(rh));
+ sendCommand("AT+CIPSEND=0," +String(getData.length()+4),4,">");
+ esp8266.println(getData);
+ getData = ("GET /update?api_key="+ API +"Co2="+String(co2));
+ sendCommand("AT+CIPSEND=0," +String(getData.length()+4),4,">");
+ esp8266.println(getData);
+ countTrueCommand++;
+ sendCommand("AT+CIPCLOSE=0",5,"OK");
+}
+
 void setup(void)
 {
-  Serial.begin(115200);
+  Serial.begin(9600);
+  esp8266.begin(115200);
+  sendCommand("AT",5,"OK");
+  sendCommand("AT+CWMODE=1",5,"OK");
+  sendCommand("AT+CWJAP=\""+ AP +"\",\""+ PASS +"\"",20,"OK");
+  
   digitalWrite(SDA,1);
   digitalWrite(SCL,1);
 
@@ -327,10 +396,10 @@ void setup(void)
   rtc.start();
   //NOTE: RTC can be offset to adjust for temperature, age etc. See documentation and example
   //PCF8523 sketches for doing so
-  logfile.println(F("Time, Co2, Temp(C),Temp(F), RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
+  logfile.println(F("Time, Co2, Temp(C),Temp(F), RH, Co2Max, RHMin, RHMax"));
 
 #if ECHO_TO_SERIAL
-  Serial.println(F("Time, Co2MinAvg, TempCurrent(C), TempCurrent(F), TempMinAvg(F), RHCurrent, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
+  Serial.println(F("Time, Co2MinAvg, TempCurrent(C), TempCurrent(F), RHCurrent, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 #endif //ECHO_TO_SERIAL
 
   //LCD SET-UP
@@ -480,9 +549,7 @@ void loop(void)
     Serial.print((tempCurrent));
     Serial.print(", ");    
     Serial.print(convertCtoF(tempCurrent));
-    Serial.print(", ");    
-    Serial.print((int)convertCtoF(tempShortAvg));
-    Serial.print(", ");   
+    Serial.print(", ");     
     Serial.print(rhCurrent);
     Serial.print(", ");
     Serial.print(fanOn);
@@ -540,17 +607,11 @@ void loop(void)
     logfile.print(", ");
     logfile.print(rhAvg);
     logfile.print(", ");
-    logfile.print(fanOn);
-    logfile.print(", ");
-    logfile.print(humOn);
-    logfile.print(", ");
     logfile.print(co2Max * 100);
     logfile.print(", ");
     logfile.print(rhMin);
     logfile.print(", ");
     logfile.print(rhMax);
-    logfile.print(", ");
-    logfile.print(freeMemory());
     logfile.println();
 
     //Green LED off when data collection is complete
