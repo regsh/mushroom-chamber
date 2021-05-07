@@ -2,7 +2,6 @@
 //Reads CO2, temp, humidity data and modulates power to outlet for humidifier/fans accordingly
 //Logs conditions at time intervals specified
 //Allows for user manipulation of set points via LCD interface
-//
 
 #include <MemoryFree.h> //for monitoring free RAM, diagnosing memory leaks
 #include <pgmStrToRAM.h>
@@ -84,15 +83,12 @@ uint8_t tempMax;
 uint8_t state = MAIN;
 
 uint8_t rhData[20];
-uint8_t rhShortAvg; //average value over the last 4 readings
 uint8_t rhCurrent;
 
 uint8_t tempData[20];
-uint8_t tempShortAvg;
 float tempCurrent;
 
 int co2Data[20];
-int co2ShortAvg;
 int co2Current;
 
 uint8_t currentIdx = 0;
@@ -166,7 +162,6 @@ void addData(uint8_t rh, uint8_t temp, int co2) {
     tempData[currentIdx] = temp;
     co2Data[currentIdx] = co2;
     currentIdx = (currentIdx + 1) % 20;
-    getAvgs();
 }
 
 float convertCtoF(float tempC){
@@ -176,30 +171,6 @@ float convertCtoF(float tempC){
    return product;
 }
 
-void getAvgs() {
-    int sum = 0;
-    for (int i = 1; i < 5; i++) {
-        //Serial.print((currentIdx + 20 - i) % 20);
-        //Serial.print(": ");
-        uint8_t d = rhData[(currentIdx + 20 - i) %20];
-        //Serial.println(d);
-        sum += rhData[(currentIdx + 20 - i) % 20];
-    }
-    rhShortAvg = sum / 4;
-
-    sum = 0;
-    for (int i = 1; i < 5; i++) {
-        sum += tempData[(currentIdx + 20 - i) % 20];
-    }
-    tempShortAvg = sum / 4;
-    sum = 0;
-    for (int i = 1; i < 5; i++) {
-        uint8_t idx = (currentIdx + 20 - i) % 20;
-        sum += co2Data[idx];
-    }
-    co2ShortAvg = sum / 4;
-}
-
 //initializes co2 and rh data queues with values specified
 //could use expected environmental values or initial readings from sensor
 void initializeQueues(uint8_t rh, uint8_t temp, int co2) {
@@ -207,10 +178,6 @@ void initializeQueues(uint8_t rh, uint8_t temp, int co2) {
         rhData[i] = rh;
         tempData[i] = temp;
         co2Data[i] = co2;
-
-        rhShortAvg = rh;
-        tempShortAvg = temp;
-        co2ShortAvg = co2;
   }
 }
 
@@ -431,7 +398,7 @@ void loop(void)
         //Serial.println(F("checking relays"));
         if (fanOn == false && 
           (co2Current > (co2Max * 100) || 
-          rhCurrent < rhMin /*|| tempShortAvg > tempMax || tempShortAvg < tempMin */
+          rhCurrent < rhMin /*|| tempCurrent > tempMax || tempCurrent < tempMin */
           )) {
             //Serial.println(F("turning on fan"));
             fanOn = true;
@@ -476,14 +443,12 @@ void loop(void)
     Serial.print(now.second(), DEC);
     Serial.print('"');
     Serial.print(", ");
-    Serial.print(co2ShortAvg);
+    Serial.print(co2Current);
     Serial.print(", ");
     Serial.print((tempCurrent));
     Serial.print(", ");    
     Serial.print(convertCtoF(tempCurrent));
-    Serial.print(", ");    
-    Serial.print((int)convertCtoF(tempShortAvg));
-    Serial.print(", ");   
+    Serial.print(", ");       
     Serial.print(rhCurrent);
     Serial.print(", ");
     Serial.print(fanOn);
