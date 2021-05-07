@@ -295,7 +295,7 @@ void setup(void)
   rtc.start();
   //NOTE: RTC can be offset to adjust for temperature, age etc. See documentation and example
   //PCF8523 sketches for doing so
-  logfile.println(F("Time, Co2, Temp(C),Temp(F), RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
+  logfile.println(F("Time, Co2, Temp(F), RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 
 #if ECHO_TO_SERIAL
   Serial.println(F("Time, Co2Current, TempCurrent(F), RHCurrent, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
