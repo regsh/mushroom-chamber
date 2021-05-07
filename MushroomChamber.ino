@@ -86,7 +86,7 @@ uint8_t rhData[20];
 uint8_t rhCurrent;
 
 uint8_t tempData[20];
-float tempCurrent;
+uint8_t tempCurrent;
 
 int co2Data[20];
 int co2Current;
@@ -114,7 +114,7 @@ void displayState(int state) { //change back to switch case?
         lcd.print(("ppm"));
         lcd.setCursor(0, 1);
         lcd.print(F("Temp:"));
-        lcd.print((int)convertCtoF(tempCurrent));
+        lcd.print(tempCurrent);
         lcd.print(F("F"));
         lcd.print(F(" RH:"));
         lcd.print(rhCurrent);
@@ -164,11 +164,11 @@ void addData(uint8_t rh, uint8_t temp, int co2) {
     currentIdx = (currentIdx + 1) % 20;
 }
 
-float convertCtoF(float tempC){
+int convertCtoF(float tempC){
    float product = tempC * 9;
    product = product/5;
    product += 32;
-   return product;
+   return (int)product + 0.5;  //casts are truncated, so without adding the 0.5 never rounds up (i.e. 3.6 becomes 3)
 }
 
 //initializes co2 and rh data queues with values specified
@@ -298,7 +298,7 @@ void setup(void)
   logfile.println(F("Time, Co2, Temp(C),Temp(F), RH, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 
 #if ECHO_TO_SERIAL
-  Serial.println(F("Time, Co2MinAvg, TempCurrent(C), TempCurrent(F), TempMinAvg(F), RHCurrent, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
+  Serial.println(F("Time, Co2Current, TempCurrent(F), RHCurrent, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"));
 #endif //ECHO_TO_SERIAL
 
   //LCD SET-UP
@@ -318,7 +318,7 @@ void setup(void)
     //https://www.fpaynter.com/tag/i2c-freeze/
     while (!airSensor.dataAvailable()) {
     }
-    initializeQueues(airSensor.getHumidity(),airSensor.getTemperature(), airSensor.getCO2()); //should confirm that this works with the returned data types
+    initializeQueues(airSensor.getHumidity(),convertCtoF(airSensor.getTemperature()), airSensor.getCO2());
     displayState(state);
   }
 }
@@ -381,7 +381,7 @@ void loop(void)
       //green LED indicates data is being collected
       digitalWrite(greenLEDpin, HIGH);
       rhCurrent = airSensor.getHumidity();
-      tempCurrent = airSensor.getTemperature();
+      tempCurrent = convertCtoF(airSensor.getTemperature());
       co2Current = airSensor.getCO2();
       //gets current sensor data
       addData(rhCurrent, tempCurrent, co2Current);
@@ -429,6 +429,7 @@ void loop(void)
         }
     }
 #if ECHO_TO_SERIAL
+//"Time, Co2Current, TempCurrent(F), RHCurrent, FanOn, HumOn, Co2Max, RHMin, RHMax, FreeMem"
     Serial.print('"');
     Serial.print(now.year(), DEC);
     Serial.print("/");
@@ -446,9 +447,7 @@ void loop(void)
     Serial.print(co2Current);
     Serial.print(", ");
     Serial.print((tempCurrent));
-    Serial.print(", ");    
-    Serial.print(convertCtoF(tempCurrent));
-    Serial.print(", ");       
+    Serial.print(", ");          
     Serial.print(rhCurrent);
     Serial.print(", ");
     Serial.print(fanOn);
@@ -501,8 +500,6 @@ void loop(void)
     logfile.print(co2Avg);
     logfile.print(", ");
     logfile.print((tempAvg));
-    logfile.print(", ");
-    logfile.print(convertCtoF(tempAvg));
     logfile.print(", ");
     logfile.print(rhAvg);
     logfile.print(", ");
